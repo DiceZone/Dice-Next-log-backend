@@ -1,13 +1,15 @@
-// 骰娘金钥校验。
-// 接了 BDC：向账号站询问，只发送金钥的 SHA-256，明文不出本机。
+// 骰娘密钥校验。
+// 接了 BDC：向账号站询问，只发送骰娘密钥的 SHA-256，明文不出本机。
 //   POST <校验地址>   头 X-Log-Service-Token: <凭据>
 //   请求 {"key_sha256": "<hex>"}
 //   回应 {"valid": true, "platform": "onebot_v11", "bot_id": "123456", "bot_name": "…"} 或 {"valid": false}
-// 没接 BDC：比对 .env 的 LIVE_STATIC_KEYS 里列出的金钥（只知道金钥有效，不知道是哪个骰娘）。
+// 不接 BDC 的自建站：在后台「骰娘密钥」签发（见 keys.mjs），或在 .env 的 LIVE_STATIC_KEYS 里列出。
+// 校验顺序：本站签发的 → .env 列出的 → BDC 账号站。
 import { config } from './config.mjs';
 import { site } from './site.mjs';
 import { HttpError } from './http.mjs';
 import { sha256 } from './store.mjs';
+import { findLocalKey, enabledKeyCount } from './keys.mjs';
 
 const VALID_TTL = 10 * 60 * 1000;
 const INVALID_TTL = 60 * 1000;
@@ -25,8 +27,17 @@ function freshCache() {
   return cache;
 }
 
+// 当前可用的校验方式：local 本站签发、static .env 里列出、bdc 账号站。
+export function liveAuthModes() {
+  const modes = [];
+  if (enabledKeyCount() > 0) modes.push('local');
+  if (staticHashes.size > 0) modes.push('static');
+  if (site.bdcVerifyUrl && site.bdcVerifyToken) modes.push('bdc');
+  return modes;
+}
+
 export function liveAuthConfigured() {
-  return Boolean(site.bdcVerifyUrl && site.bdcVerifyToken) || staticHashes.size > 0;
+  return liveAuthModes().length > 0;
 }
 
 async function ask(keyHash) {
@@ -45,10 +56,15 @@ async function ask(keyHash) {
   };
 }
 
-// 返回 { hash, botId, platform }：hash 是金钥的哈希，作为日志的归属标记。金钥无效时抛 403。
+// 返回 { hash, botId, platform }：hash 是骰娘密钥的哈希，作为日志的归属标记。骰娘密钥无效时抛 403。
 export async function verifyKey(key) {
   if (!key) throw new HttpError(401, { success: false, message: 'Missing key' });
   const hash = sha256(key);
+  const local = findLocalKey(hash);
+  if (local) {
+    if (!local.enabled) throw new HttpError(403, { success: false, message: 'Invalid key' });
+    return { hash, botId: local.botId, platform: '' };
+  }
   if (staticHashes.has(hash)) return { hash, botId: '', platform: '' };
   if (!site.bdcVerifyUrl || !site.bdcVerifyToken) {
     throw new HttpError(403, { success: false, message: 'Invalid key' });

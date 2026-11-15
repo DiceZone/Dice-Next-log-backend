@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  var I18N = window.DNLOG_I18N;
+  var t = I18N.t;
   var app = document.getElementById('app');
   var toastEl = document.getElementById('toast');
   var toastTimer = null;
@@ -8,13 +10,17 @@
   // ── 小工具 ──────────────────────────────────────────────
 
   // 所有来自日志的文字都经 textContent 写入，不拼 HTML。
+  // text / placeholder / aria-label 是界面文字，会按当前语言翻译；
+  // 来自日志或服务器的内容（名称、账号、路径、消息）用 data 写入，原样显示。
   function h(tag, props) {
     var el = document.createElement(tag);
     Object.keys(props || {}).forEach(function (name) {
       var value = props[name];
       if (value === undefined || value === null || value === false) return;
       if (name === 'class') el.className = value;
-      else if (name === 'text') el.textContent = value;
+      else if (name === 'text') el.textContent = t(value);
+      else if (name === 'data') el.textContent = value;
+      else if (name === 'placeholder' || name === 'aria-label') el.setAttribute(name, t(value));
       else if (name.indexOf('on') === 0) el.addEventListener(name.slice(2), value);
       else if (name === 'checked' || name === 'disabled' || name === 'value' || name === 'selected') el[name] = value;
       else el.setAttribute(name, value);
@@ -26,11 +32,11 @@
   function append(el, child) {
     if (child === undefined || child === null || child === false) return;
     if (Array.isArray(child)) child.forEach(function (c) { append(el, c); });
-    else el.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+    else el.appendChild(typeof child === 'string' ? document.createTextNode(t(child)) : child);
   }
 
   function toast(message, isError) {
-    toastEl.textContent = message;
+    toastEl.textContent = t(message);
     toastEl.className = 'toast' + (isError ? ' error' : '');
     toastEl.hidden = false;
     clearTimeout(toastTimer);
@@ -120,7 +126,7 @@
         errorEl.hidden = true;
         button.disabled = true;
         onSubmit().then(boot).catch(function (error) {
-          errorEl.textContent = error.message;
+          errorEl.textContent = t(error.message);
           errorEl.hidden = false;
           button.disabled = false;
         });
@@ -158,7 +164,7 @@
   // ── 主界面 ──────────────────────────────────────────────
 
   var currentTab = 'logs';
-  var TABS = [['logs', '日志'], ['settings', '设置'], ['account', '账号']];
+  var TABS = [['logs', '日志'], ['keys', '骰娘密钥'], ['settings', '设置'], ['account', '账号']];
 
   function renderMain() {
     var content = h('div', {});
@@ -170,6 +176,7 @@
     }));
     app.replaceChildren(tabs, content);
     if (currentTab === 'logs') renderLogs(content);
+    else if (currentTab === 'keys') renderKeys(content);
     else if (currentTab === 'settings') renderSettings(content);
     else renderAccount(content);
   }
@@ -228,7 +235,7 @@
     }
 
     function stat(label, value) {
-      return h('div', { class: 'stat' }, h('div', { class: 'stat-label', text: label }), h('div', { class: 'stat-value', text: value }));
+      return h('div', { class: 'stat' }, h('div', { class: 'stat-label', text: label }), h('div', { class: 'stat-value', data: value }));
     }
 
     function updateBatch() {
@@ -293,15 +300,14 @@
           : log.status === 'live' ? '完结后计算' : log.expires_at ? formatTime(log.expires_at) : '不自动删除';
         return h('tr', {},
           h('td', {}, box),
-          h('td', { class: 'name', title: log.name, text: log.name || '（未命名）' }),
-          h('td', { class: 'mono', text: log.key }),
-          h('td', { class: 'mono', text: log.bot_id }),
-          h('td', { class: 'mono', text: log.group_id }),
+          log.name ? h('td', { class: 'name', title: log.name, data: log.name }) : h('td', { class: 'name', text: '（未命名）' }),
+          h('td', { class: 'mono', data: log.bot_id }),
+          h('td', { class: 'mono', data: log.group_id }),
           h('td', { text: SOURCE_TEXT[log.source] || log.source }),
-          h('td', { text: log.client }),
-          h('td', { text: formatSize(log.size) }),
+          h('td', { data: log.client }),
+          h('td', { data: formatSize(log.size) }),
           h('td', {}, status),
-          h('td', { text: formatTime(log.created_at) }),
+          h('td', { data: formatTime(log.created_at) }),
           h('td', {}, expires),
           h('td', { class: 'actions' },
             h('a', { class: 'btn-link', href: log.url, target: '_blank', rel: 'noopener noreferrer', text: '查看' }),
@@ -318,7 +324,7 @@
         h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {},
             h('th', {}, all),
-            ['名称', 'Key', '骰娘号', '群号', '来源', '格式', '大小', '状态', '创建时间', '到期时间', ''].map(function (text) { return h('th', { text: text }); }))),
+            ['名称', '骰娘号', '群号', '来源', '格式', '大小', '状态', '创建时间', '到期时间', ''].map(function (text) { return h('th', { text: text }); }))),
           h('tbody', {}, rows))),
         h('div', { class: 'pager' },
           h('span', { text: '共 ' + data.total + ' 份，第 ' + data.page + ' / ' + pages + ' 页' }),
@@ -375,15 +381,15 @@
       [
         ['名称', log.name], ['Key', log.key], ['分享链接', log.url],
         ['骰娘号', log.bot_id], ['群号', log.group_id],
-        ['来源', SOURCE_TEXT[log.source] || log.source], ['格式', log.client],
+        ['来源', t(SOURCE_TEXT[log.source] || log.source)], ['格式', log.client],
         ['uniform_id', log.uniform_id], ['上传 IP', log.uploader_ip],
-        ['大小', formatSize(log.size)], ['存储位置', log.status === 'live' ? '' : storageLabel(log.storage)],
+        ['大小', formatSize(log.size)], ['存储位置', log.status === 'live' ? '' : t(storageLabel(log.storage))],
         ['创建时间', formatTime(log.created_at)],
         ['最后更新', formatTime(log.updated_at)], ['备注', log.note],
       ].forEach(function (pair) {
         if (!pair[1]) return;
         meta.appendChild(h('dt', { text: pair[0] }));
-        meta.appendChild(h('dd', { text: pair[1] }));
+        meta.appendChild(h('dd', { data: pair[1] }));
       });
       var previewEl = h('div', { class: 'hint', text: '正在读取内容……' });
       var el = dialog('日志详情', [meta, previewEl], [
@@ -393,11 +399,11 @@
         if (data.participants.length) {
           meta.appendChild(h('dt', { text: '参与者' }));
           meta.appendChild(h('dd', {
-            text: data.participants.map(function (p) { return p.nickname + '（' + p.user_id + '）'; }).join('、'),
+            data: data.participants.map(function (p) { return p.nickname + '（' + p.user_id + '）'; }).join('、'),
           }));
         }
         if (!data.supported) {
-          previewEl.textContent = '该格式无法在后台预览内容，请使用「查看」在染色器中打开。';
+          previewEl.textContent = t('该格式无法在后台预览内容，请使用「查看」在染色器中打开。');
           return;
         }
         var head = data.total > data.items.length
@@ -408,12 +414,110 @@
         append(previewEl, data.items.map(function (item) {
           var time = item.time ? formatTime(new Date(item.time * 1000).toISOString()) : '';
           return h('div', { class: 'preview-item' + (item.is_dice ? ' dice' : '') },
-            h('div', { class: 'preview-head', text: item.nickname + '（' + item.user_id + '） ' + time }),
-            h('div', { class: 'preview-message', text: item.message }));
+            h('div', { class: 'preview-head', data: item.nickname + '（' + item.user_id + '） ' + time }),
+            h('div', { class: 'preview-message', data: item.message }));
         }));
-      }).catch(function (error) { previewEl.textContent = error.message; });
+      }).catch(function (error) { previewEl.textContent = t(error.message); });
     }
 
+    load();
+  }
+
+  // ── 骰娘密钥 ────────────────────────────────────────────
+
+  function renderKeys(root) {
+    var botInput = h('input', { type: 'text', maxlength: '64' });
+    var nameInput = h('input', { type: 'text', maxlength: '100' });
+    var countInput = h('input', { type: 'number', min: '1', max: '50', step: '1', value: '1' });
+    var listEl = h('div', {});
+
+    function showIssued(items) {
+      var area = h('textarea', { class: 'issued-keys', readonly: 'readonly', spellcheck: 'false' });
+      area.value = items.map(function (item) { return item.key; }).join('\n');
+      area.rows = Math.min(Math.max(items.length, 2), 12);
+      var el = dialog('骰娘密钥已签发', [
+        h('p', { class: 'error-text', text: '密钥只显示这一次，关闭后无法再次查看，请立即保存。' }),
+        area,
+      ], [
+        h('button', {
+          class: 'btn', type: 'button', text: '复制',
+          onclick: function () {
+            area.select();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(area.value).then(function () { toast('已复制。'); }).catch(function () { document.execCommand('copy'); });
+            } else {
+              document.execCommand('copy');
+              toast('已复制。');
+            }
+          },
+        }),
+        h('button', { class: 'btn btn-primary', type: 'button', text: '关闭', onclick: function () { el.dismiss(); } }),
+      ], true);
+    }
+
+    function issue(event) {
+      event.preventDefault();
+      api('POST', 'keys', { bot_id: botInput.value.trim(), name: nameInput.value.trim(), count: Number(countInput.value) })
+        .then(function (data) {
+          nameInput.value = '';
+          countInput.value = '1';
+          showIssued(data.items);
+          load();
+        }).catch(showError);
+    }
+
+    function label(key) {
+      return key.name || key.key_prefix + '…';
+    }
+
+    function load() {
+      api('GET', 'keys').then(function (data) {
+        if (data.items.length === 0) {
+          listEl.replaceChildren(h('div', { class: 'empty', text: '尚未签发骰娘密钥。' }));
+          return;
+        }
+        var rows = data.items.map(function (key) {
+          return h('tr', {},
+            key.name ? h('td', { class: 'name', title: key.name, data: key.name }) : h('td', { class: 'name', text: '（无备注）' }),
+            h('td', { class: 'mono', data: key.bot_id }),
+            h('td', { class: 'mono', data: key.key_prefix + '…' }),
+            h('td', {}, key.enabled ? h('span', { class: 'badge badge-live', text: '启用' }) : h('span', { class: 'badge', text: '已停用' })),
+            h('td', { data: formatTime(key.created_at) }),
+            key.last_used_at ? h('td', { data: formatTime(key.last_used_at) }) : h('td', { text: '从未使用' }),
+            h('td', { class: 'actions' },
+              h('button', {
+                class: 'btn-link', type: 'button', text: key.enabled ? '停用' : '启用',
+                onclick: function () {
+                  api('PATCH', 'keys/' + key.id, { enabled: !key.enabled }).then(load).catch(showError);
+                },
+              }),
+              h('button', {
+                class: 'btn-link danger', type: 'button', text: '删除',
+                onclick: function () {
+                  confirmDialog('删除骰娘密钥', '将删除骰娘密钥「' + label(key) + '」，使用它的骰娘将无法再上传实时日志或查询日志。', '删除', function () {
+                    api('DELETE', 'keys/' + key.id).then(function () { toast('骰娘密钥已删除。'); load(); }).catch(showError);
+                  });
+                },
+              })));
+        });
+        listEl.replaceChildren(h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['备注', '骰娘号', '密钥开头', '状态', '创建时间', '最后使用', ''].map(function (text) { return h('th', { text: text }); }))),
+          h('tbody', {}, rows))));
+      }).catch(showError);
+    }
+
+    root.replaceChildren(
+      h('div', { class: 'card' },
+        h('div', { class: 'card-title', text: '签发骰娘密钥' }),
+        h('div', { class: 'card-body' },
+          h('form', { onsubmit: issue },
+            h('div', { class: 'settings-grid' },
+              field('骰娘号', botInput, '用这把密钥上传的日志会记到该骰娘号名下；可留空。'),
+              field('备注', nameInput, '用于辨认这把密钥，例如骰娘的名字。'),
+              field('数量', countInput, '一次可签发 1–50 把；多把时备注后会加上序号。')),
+            h('p', { class: 'hint', text: '持有骰娘密钥的骰娘可以上传实时日志，并查询自己名下的日志。' }),
+            h('div', { class: 'form-actions' }, h('button', { class: 'btn btn-primary', type: 'submit', text: '签发' }))))),
+      h('div', { class: 'card' }, h('div', { class: 'card-title', text: '已签发的骰娘密钥' }), listEl));
     load();
   }
 
@@ -422,10 +526,10 @@
   var SETTING_FIELDS = [
     ['retention_days', '日志保留期限（天）', '超过期限的日志会被自动删除；填 0 表示不自动删除。标记为永久保留的日志不受影响。'],
     ['max_upload_mb', '单份日志大小上限（MB）', '一次性上传的文件超过此大小时会被拒绝。'],
-    ['upload_rate_per_hour', '同一 IP 每小时上传次数上限', '填 0 表示不限制。'],
+    ['upload_rate_per_hour', '同一 IP 每小时上传次数上限', '只计一次性上传，实时日志的追加不受影响。填 0 表示不限制。'],
     ['live_idle_hours', '实时日志闲置自动完结（小时）', '实时日志在此时间内没有新消息时会被自动完结。'],
     ['live_max_mb', '单份实时日志大小上限（MB）', '实时日志累计的消息超过此大小后不再接收新消息。'],
-    ['live_max_per_owner', '同一金钥可同时进行的实时日志数', ''],
+    ['live_max_per_owner', '同一骰娘密钥可同时进行的实时日志数', ''],
   ];
 
   var SITE_FIELDS = [
@@ -433,10 +537,15 @@
     ['cors_origins', '额外放行的来源', '除染色器外允许跨域访问的网址，多个以逗号分隔。', ''],
     ['legacy_upstream_url', '旧站地址', '本站查不到的日志会转去该地址读取；留空则不转。', ''],
     ['trust_proxy_header', '访客 IP 请求头', '反向代理或 CDN 传递访客真实 IP 的请求头；留空则使用连接地址。', ''],
-    ['bdc_verify_url', '金钥校验地址', 'BDC 账号站校验骰娘金钥的接口地址。', 'https://'],
+    ['bdc_verify_url', '骰娘密钥校验地址', 'BDC 账号站校验骰娘密钥的接口地址。', 'https://'],
   ];
 
-  var LIVE_AUTH_TEXT = { bdc: '由 BDC 账号站校验', static: '使用配置文件中列出的金钥', none: '未配置，实时串流与骰娘查询不可用' };
+  var LIVE_AUTH_TEXT = { local: '本站签发的骰娘密钥', static: '配置文件中列出的骰娘密钥', bdc: 'BDC 账号站' };
+
+  function liveAuthText(modes) {
+    if (!modes.length) return t('未配置，实时串流与骰娘查询不可用');
+    return modes.map(function (mode) { return t(LIVE_AUTH_TEXT[mode]); }).join(I18N.lang === 'zh' ? '、' : ', ');
+  }
 
   var STORAGE_STATE = { online: '在线', uninitialized: '未初始化', offline: '离线', missing: '配置中已移除' };
 
@@ -497,10 +606,10 @@
             h('td', {}, storageLabel(loc.name),
               loc.target ? h('span', { class: 'badge badge-live storage-badge', text: '写入位置' }) : null,
               loc.draining ? h('span', { class: 'badge badge-pinned storage-badge', text: '迁出中' }) : null),
-            h('td', { class: 'mono', text: loc.path }),
+            h('td', { class: 'mono', data: loc.path }),
             h('td', { text: STORAGE_STATE[loc.state] || loc.state }),
-            h('td', { text: String(loc.count) }),
-            h('td', { text: formatSize(loc.bytes) }),
+            h('td', { data: String(loc.count) }),
+            h('td', { data: formatSize(loc.bytes) }),
             h('td', { class: 'actions' }, actions(loc)));
         });
         var mover = data.mover;
@@ -512,7 +621,7 @@
             h('tbody', {}, rows))),
           h('div', { class: 'card-body' },
             h('p', { class: 'hint', text: status }),
-            mover.last_error ? h('p', { class: 'error-text', text: formatTime(mover.last_error_at) + '　' + mover.last_error }) : null,
+            mover.last_error ? h('p', { class: 'error-text', data: formatTime(mover.last_error_at) + '　' + t(mover.last_error) }) : null,
             h('p', { class: 'hint', text: '日志上传后先写入本地缓存，随后搬往写入位置。存储位置在服务器的 .env 文件 STORAGES 中增减，修改后需重启服务。' }),
             h('div', { class: 'form-actions' },
               h('button', { class: 'btn', type: 'button', text: '刷新', onclick: load }),
@@ -624,7 +733,7 @@
         type: 'password', autocomplete: 'new-password',
         placeholder: data.site.bdc_verify_token_set ? '已设置，留空则不修改' : '尚未设置',
       });
-      var liveAuthEl = h('dd', { text: LIVE_AUTH_TEXT[data.live_auth] });
+      var liveAuthEl = h('dd', { data: liveAuthText(data.live_auth_modes) });
 
       function saveSite() {
         var body = {};
@@ -661,8 +770,8 @@
           h('div', { class: 'card-title', text: '站点配置' }),
           h('div', { class: 'card-body' },
             siteFields,
-            field('金钥校验凭据', tokenInput, '与 BDC 账号站约定的凭据。'),
-            h('dl', { class: 'env-list' }, h('dt', { text: '骰娘金钥校验' }), liveAuthEl),
+            field('骰娘密钥校验凭据', tokenInput, '与 BDC 账号站约定的凭据。'),
+            h('dl', { class: 'env-list' }, h('dt', { text: '可用的骰娘密钥校验方式' }), liveAuthEl),
             h('div', { class: 'form-actions' },
               h('button', { class: 'btn btn-primary', type: 'button', text: '保存站点配置', onclick: saveSite })))),
         importCard);
@@ -699,6 +808,14 @@
   document.getElementById('logout').addEventListener('click', function () {
     api('POST', 'logout').then(boot).catch(showError);
   });
+
+  // 页面上写死的文字与语言切换按钮。
+  document.title = t('后台管理') + ' - Dice!Next Log Service';
+  document.documentElement.lang = I18N.lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.textContent.trim()); });
+  var langButton = document.getElementById('lang-switch');
+  langButton.textContent = I18N.lang === 'zh' ? 'English' : '中文';
+  langButton.addEventListener('click', function () { I18N.setLang(I18N.lang === 'zh' ? 'en' : 'zh'); });
 
   function boot() {
     return api('GET', 'state').then(function (state) {

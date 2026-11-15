@@ -2,6 +2,12 @@
   justify-content: space-between;
 }
 
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .navbar-user {
   display: flex;
   align-items: center;
@@ -153,6 +159,12 @@ textarea {
   gap: 8px;
   margin-bottom: 16px;
   font-size: 13px;
+}
+
+p.hint {
+  font-size: 12px;
+  color: #57606a;
+  margin-bottom: 12px;
 }
 
 .form-actions {
@@ -322,6 +334,12 @@ td.actions {
 .badge-pinned {
   background: #fff8c5;
   color: #7d4e00;
+}
+
+textarea.issued-keys {
+  width: 100%;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 12px;
 }
 
 textarea.import-index {

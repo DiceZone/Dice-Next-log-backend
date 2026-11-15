@@ -24,7 +24,7 @@ const DEFS = {
   },
   // 旧站地址：本站查不到的日志转去那里读取。
   legacy_upstream_url: { def: config.legacyUpstream, clean: urlOrEmpty },
-  // BDC 账号站的金钥校验接口与凭据。
+  // BDC 账号站的骰娘密钥校验接口与凭据。
   bdc_verify_url: {
     def: config.bdcVerifyUrl,
     clean: (v) => {

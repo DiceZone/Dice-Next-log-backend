@@ -24,6 +24,7 @@ const STATIC = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/site.css': ['site.css', 'text/css; charset=utf-8'],
   '/index.js': ['index.js', 'text/javascript; charset=utf-8'],
+  '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'],
   '/logo.svg': ['logo.svg', 'image/svg+xml'],
   '/favicon.ico': ['logo.svg', 'image/svg+xml'],
   '/robots.txt': ['robots.txt', 'text/plain; charset=utf-8'],

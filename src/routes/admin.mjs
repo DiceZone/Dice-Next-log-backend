@@ -8,9 +8,10 @@ import {
 } from '../auth.mjs';
 import {
   getLog, shareUrl, deleteLogs, cleanupExpired, finalizeLive, readData,
-  decodeItems, searchLogs, participantsOf,
+  decodeItems, searchLogs, participantsOf, bareId,
 } from '../store.mjs';
-import { liveAuthConfigured } from '../bdc.mjs';
+import { liveAuthModes } from '../bdc.mjs';
+import { listKeys, issueKeys, updateKey, deleteKey } from '../keys.mjs';
 import { site, siteValues, updateSite } from '../site.mjs';
 import { importStatus, startImport, stopImport } from '../import-legacy.mjs';
 import {
@@ -248,7 +249,7 @@ const SITE_ERRORS = {
   frontend_url: '染色器地址须为有效的网址，且不能留空。',
   cors_origins: '额外放行的来源须为网址，多个以逗号分隔。',
   legacy_upstream_url: '旧站地址须为有效的网址。',
-  bdc_verify_url: '金钥校验地址须以 http:// 或 https:// 开头。',
+  bdc_verify_url: '骰娘密钥校验地址须以 http:// 或 https:// 开头。',
   trust_proxy_header: '请求头名称只能包含字母、数字与短横线。',
 };
 
@@ -257,7 +258,7 @@ function getSettings({ res }) {
     values: allSettings(),
     limits: SETTING_DEFS,
     site: siteValues(),
-    live_auth: site.bdcVerifyUrl && site.bdcVerifyToken ? 'bdc' : liveAuthConfigured() ? 'static' : 'none',
+    live_auth_modes: liveAuthModes(),
   });
 }
 
@@ -341,6 +342,47 @@ function storageRun({ res }) {
   send(res, 200, { success: true });
 }
 
+// ─── 本站签发的骰娘密钥 ─────────────────────────────────────
+
+function getKeys({ res }) {
+  send(res, 200, { items: listKeys() });
+}
+
+function keyFields(body) {
+  const patch = {};
+  if (body.name !== undefined) {
+    const name = String(body.name).trim();
+    if (name.length > 100) throw fail(400, '备注不得超过 100 个字符。');
+    patch.name = name;
+  }
+  if (body.bot_id !== undefined) patch.bot_id = bareId(body.bot_id);
+  return patch;
+}
+
+async function postKeys({ req, res }) {
+  const body = await readJson(req, 4096);
+  const fields = keyFields(body);
+  const count = body.count === undefined ? 1 : Number(body.count);
+  if (!Number.isInteger(count) || count < 1 || count > 50) throw fail(400, '签发数量须为 1–50 的整数。');
+  const issued = issueKeys({ name: fields.name || '', botId: fields.bot_id || '', count });
+  if (!issued) throw fail(400, '骰娘密钥的数量已达上限。');
+  send(res, 200, { success: true, items: issued });
+}
+
+async function patchKey({ req, res }, id) {
+  const body = await readJson(req, 4096);
+  const patch = keyFields(body);
+  if (body.enabled !== undefined) patch.enabled = body.enabled ? 1 : 0;
+  const key = updateKey(id, patch);
+  if (!key) throw fail(404, '该骰娘密钥不存在。');
+  send(res, 200, key);
+}
+
+function removeKey({ res }, id) {
+  if (!deleteKey(id)) throw fail(404, '该骰娘密钥不存在。');
+  send(res, 200, { success: true });
+}
+
 // ─── 旧站迁移 ───────────────────────────────────────────────
 
 function getImport({ res }) {
@@ -381,6 +423,8 @@ const PRIVATE = {
   'GET settings': getSettings,
   'PUT settings': putSettings,
   'POST cleanup': runCleanup,
+  'GET keys': getKeys,
+  'POST keys': postKeys,
   'GET import': getImport,
   'POST import/start': postImportStart,
   'POST import/stop': postImportStop,
@@ -393,9 +437,18 @@ const PRIVATE = {
 
 const LOG_ROUTE = /^logs\/([A-Za-z0-9]{4,12})(?:\/(preview|finalize))?$/;
 
+const KEY_ROUTE = /^keys\/(\d{1,10})$/;
+
 function findPrivate(method, sub) {
   const direct = PRIVATE[`${method} ${sub}`];
   if (direct) return direct;
+  const keyMatch = KEY_ROUTE.exec(sub);
+  if (keyMatch) {
+    const id = Number(keyMatch[1]);
+    if (method === 'PATCH') return (ctx) => patchKey(ctx, id);
+    if (method === 'DELETE') return (ctx) => removeKey(ctx, id);
+    return null;
+  }
   const match = LOG_ROUTE.exec(sub);
   if (!match) return null;
   const [, key, action] = match;

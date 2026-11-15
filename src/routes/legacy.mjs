@@ -25,8 +25,8 @@ function checkUploadRate(ip, headers) {
   }
 }
 
-// 上传时带了有效的骰娘金钥：日志记到这把金钥名下，骰娘号以账号站登记的为准。
-// 没带或金钥无效都照常接收，旧客户端不受影响。
+// 上传时带了有效的骰娘密钥：日志记到这把骰娘密钥名下，骰娘号以账号站登记的为准。
+// 没带或骰娘密钥无效都照常接收，旧客户端不受影响。
 async function uploader(req) {
   const key = bearer(req);
   if (!key) return {};

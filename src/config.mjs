@@ -80,7 +80,7 @@ export const config = {
   legacyUpstream: baseUrl(env.LEGACY_UPSTREAM_URL),
   bdcVerifyUrl: (env.BDC_VERIFY_URL || '').trim(),
   bdcVerifyToken: (env.BDC_VERIFY_TOKEN || '').trim(),
-  // 自建站不接 BDC 时，可在此直接列出允许串流的金钥。
+  // 自建站不接 BDC 时，可在此直接列出允许串流的骰娘密钥。
   liveStaticKeys: list(env.LIVE_STATIC_KEYS),
   trustProxyHeader: (env.TRUST_PROXY_HEADER || '').trim().toLowerCase(),
   // 后台 Cookie 是否强制 Secure：auto 表示按 x-forwarded-proto 判断。

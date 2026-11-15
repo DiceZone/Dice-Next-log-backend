@@ -282,7 +282,7 @@ function likePattern(text) {
 }
 
 // filters：q（名称/Key/uniform_id/备注）、status、source、bot、group、participant（账号或昵称）、
-// owner（{ hash, botId }：只看这把金钥或这个骰娘号名下的日志）。
+// owner（{ hash, botId }：只看这把骰娘密钥或这个骰娘号名下的日志）。
 export function searchLogs(filters, { page = 1, pageSize = 50, sort } = {}) {
   const where = [];
   const args = [];

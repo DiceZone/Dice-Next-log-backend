@@ -10,6 +10,6 @@
   "scripts": {
     "start": "node server.mjs",
     "reset-admin": "node cli.mjs reset-admin",
-    "test": "node test/e2e.mjs"
+    "test": "node test/i18n-check.mjs && node test/e2e.mjs"
   }
 }

@@ -29,6 +29,26 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
+.navbar {
+  justify-content: space-between;
+}
+
+.lang-btn {
+  background: #f6f8fb;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  color: #24292f;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.lang-btn:hover {
+  background: #eaeef2;
+  border-color: #bec3cc;
+}
+
 .navbar-brand {
   font-size: 16px;
   font-weight: 600;

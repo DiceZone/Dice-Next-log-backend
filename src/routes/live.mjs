@@ -1,12 +1,12 @@
 // 实时串流接口（/api/v2）。
 //   GET  /api/v2/info                     站点信息
-//   POST /api/v2/live/start               开始一份实时日志（Bearer 骰娘金钥）
-//   POST /api/v2/live/{key}/fork          以这份日志为起点另开一份续写（Bearer 骰娘金钥 + 日志密码）
+//   POST /api/v2/live/start               开始一份实时日志（Bearer 骰娘密钥）
+//   POST /api/v2/live/{key}/fork          以这份日志为起点另开一份续写（Bearer 骰娘密钥 + 日志密码）
 //   POST /api/v2/live/{key}/append        追加消息（Bearer 会话令牌）
 //   POST /api/v2/live/{key}/end           完结（Bearer 会话令牌）
 //   GET  /api/v2/live/{key}/events        拉取 after 之后的消息（password）
 //   GET  /api/v2/live/{key}/stream        SSE 推送（password）
-//   GET  /api/v2/logs                     骰娘查询自己名下的日志（Bearer 骰娘金钥）
+//   GET  /api/v2/logs                     骰娘查询自己名下的日志（Bearer 骰娘密钥）
 import { timingSafeEqual } from 'node:crypto';
 import { config } from '../config.mjs';
 import { getSetting } from '../db.mjs';
@@ -188,7 +188,7 @@ function stream({ req, res, url }, key) {
   }
 }
 
-// 骰娘查询自己名下的日志：用这把金钥上传的，以及骰娘号与账号站登记一致的。
+// 骰娘查询自己名下的日志：用这把骰娘密钥上传的，以及骰娘号与账号站登记一致的。
 async function logs({ req, res, url }) {
   const headers = { ...cors(req, 'GET, OPTIONS'), 'Cache-Control': 'no-store' };
   if (!liveAuthConfigured()) {

@@ -130,10 +130,10 @@ export const SETTING_DEFS = {
   // 是否开放实时串流。
   live_enabled: { def: 1, min: 0, max: 1 },
   // 实时日志多久没有新消息后自动完结（小时）。
-  live_idle_hours: { def: 24, min: 1, max: 720 },
+  live_idle_hours: { def: 360, min: 1, max: 8760 },
   // 单份实时日志累计的大小上限（MB）。
   live_max_mb: { def: 20, min: 1, max: 500 },
-  // 同一把金钥可同时进行的实时日志数量。
+  // 同一把骰娘密钥可同时进行的实时日志数量。
   live_max_per_owner: { def: 20, min: 1, max: 1000 },
 };
 

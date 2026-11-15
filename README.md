@@ -40,7 +40,7 @@ docker compose up -d --build
 - 可以登记多个位置并随时更改写入位置；已存放的日志留在原处照常读取。需要腾空某个位置时，对它执行「迁出日志」，其中的日志会搬往当前写入位置。
 - 初始化时会在位置根目录写入标记文件 `.dnlog-storage`，服务靠它判断位置是否在线，请勿删除。
 
-环境变量的说明见 [.env.example](.env.example)。染色器地址、旧站地址、金钥校验地址等站点配置在 `.env` 里的值只是首次启动时的默认值，之后在后台「设置 → 站点配置」修改，保存后立即生效，不需要重启。
+环境变量的说明见 [.env.example](.env.example)。染色器地址、旧站地址、骰娘密钥校验地址等站点配置在 `.env` 里的值只是首次启动时的默认值，之后在后台「设置 → 站点配置」修改，保存后立即生效，不需要重启。
 
 版本号是建置日期（如 `v20261115`）：建置镜像时写入，直接从源码运行时取源码的最新修改日期。
 
@@ -86,7 +86,7 @@ docker exec dice-next-log-backend node cli.mjs reset-admin
 
 - 表单字段 `group_id`：群号。
 - 表单字段 `bot_id`：骰娘号。省略时取 `uniform_id` 冒号后面的部分。
-- 请求头 `Authorization: Bearer <骰娘金钥>`：日志记到这把金钥名下，骰娘号以 BDC 账号站登记的为准。金钥无效时照常接收，只是不记归属。
+- 请求头 `Authorization: Bearer <骰娘密钥>`：日志记到这把骰娘密钥名下，骰娘号以 BDC 账号站登记的为准。骰娘密钥无效时照常接收，只是不记归属。
 
 参与者不需要上传：服务会从日志内容里取出发过言的账号与昵称（Parquet 格式除外）。
 
@@ -99,12 +99,12 @@ docker exec dice-next-log-backend node cli.mjs reset-admin
 
 ### 实时串流接口
 
-需要在 `.env` 配置金钥校验方式（`BDC_VERIFY_URL` + `BDC_VERIFY_TOKEN`，或 `LIVE_STATIC_KEYS`）。
+需要在 `.env` 配置骰娘密钥校验方式（`BDC_VERIFY_URL` + `BDC_VERIFY_TOKEN`，或 `LIVE_STATIC_KEYS`）。
 
 **1. 开始** `POST /api/v2/live/start`
 
 ```
-Authorization: Bearer <骰娘金钥>
+Authorization: Bearer <骰娘密钥>
 {"name": "团名", "uniform_id": "QQ:123456"}
 ```
 
@@ -112,7 +112,7 @@ Authorization: Bearer <骰娘金钥>
 {"key": "aB3d", "password": "123456", "url": "https://…/?key=aB3d#123456", "token": "<会话令牌>", "last_seq": 0}
 ```
 
-`url` 从这一刻起即可分享。之后的请求一律使用 `token`，金钥只在开始时发送一次。
+`url` 从这一刻起即可分享。之后的请求一律使用 `token`，骰娘密钥只在开始时发送一次。
 
 **2. 追加** `POST /api/v2/live/{key}/append`
 
@@ -142,7 +142,7 @@ Authorization: Bearer <会话令牌>
 **续写** `POST /api/v2/live/{key}/fork`
 
 ```
-Authorization: Bearer <骰娘金钥>
+Authorization: Bearer <骰娘密钥>
 {"password": "123456"}
 ```
 
@@ -163,15 +163,15 @@ Authorization: Bearer <骰娘金钥>
 
 SSE 经过 CDN 时可能被缓冲，这种情况下请改用 `events` 轮询。
 
-`start` 的请求体可另带 `group_id`（群号）与 `bot_id`（骰娘号；金钥经 BDC 校验时以账号站登记的为准）。
+`start` 的请求体可另带 `group_id`（群号）与 `bot_id`（骰娘号；骰娘密钥经 BDC 校验时以账号站登记的为准）。
 
 **其他** `GET /api/v2/info` 返回站点名称、版本、保留期限、大小上限与是否开放实时串流。
 
 ### 骰娘查询自己的日志
 
-`GET /api/v2/logs`（`Authorization: Bearer <骰娘金钥>`）
+`GET /api/v2/logs`（`Authorization: Bearer <骰娘密钥>`）
 
-返回这把金钥名下的日志：用它上传或串流的，以及骰娘号与账号站登记一致的。
+返回这把骰娘密钥名下的日志：用它上传或串流的，以及骰娘号与账号站登记一致的。
 
 | 参数 | 说明 |
 |---|---|
@@ -190,15 +190,25 @@ SSE 经过 CDN 时可能被缓冲，这种情况下请改用 `events` 轮询。
 ]}
 ```
 
+### 骰娘密钥从哪里来
+
+实时串流、续写、骰娘查询都要带骰娘密钥。校验方式有三种，可以并存，按下面的顺序依次比对：
+
+1. **本站签发**：在后台「骰娘密钥」页签发，可一次签发多把，可随时停用或删除。签发时填的骰娘号会记到日志上。密钥只在签发时显示一次，库里只存它的 SHA-256。自建站不接 BDC 时用这种。
+2. **配置文件列出**：`.env` 的 `LIVE_STATIC_KEYS`，逗号分隔。只知道密钥有效，不知道是哪个骰娘。
+3. **BDC 账号站**：在后台「设置 → 站点配置」填校验地址与凭据，协议见下。
+
+三种都没有配置时，实时串流与骰娘查询不可用，一次性上传不受影响。
+
 ### BDC 账号站需要提供的校验接口
 
 ```
-POST <金钥校验地址>
-X-Log-Service-Token: <金钥校验凭据>
-{"key_sha256": "<金钥的 SHA-256，十六进制>"}
+POST <骰娘密钥校验地址>
+X-Log-Service-Token: <骰娘密钥校验凭据>
+{"key_sha256": "<骰娘密钥的 SHA-256，十六进制>"}
 ```
 
-回应 `{"valid": true, "platform": "onebot_v11", "bot_id": "123456", "bot_name": "…"}` 或 `{"valid": false}`。有效结果缓存 10 分钟、无效结果缓存 1 分钟；账号站暂时无法访问时，之前验过有效的金钥继续放行。
+回应 `{"valid": true, "platform": "onebot_v11", "bot_id": "123456", "bot_name": "…"}` 或 `{"valid": false}`。有效结果缓存 10 分钟、无效结果缓存 1 分钟；账号站暂时无法访问时，之前验过有效的骰娘密钥继续放行。
 
 ## 从旧站迁移
 

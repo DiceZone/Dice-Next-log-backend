@@ -210,10 +210,10 @@ try {
 
   // ── 实时串流 ──
   const startBody = { name: '实时团', uniform_id: 'QQ:10001' };
-  check('没有金钥不能开始实时日志', (await call('POST', '/api/v2/live/start', { body: startBody })).status === 401);
-  check('无效金钥被拒绝', (await call('POST', '/api/v2/live/start', { body: startBody, headers: { Authorization: 'Bearer bdc_diceflats_wrong' } })).status === 403);
+  check('没有骰娘密钥不能开始实时日志', (await call('POST', '/api/v2/live/start', { body: startBody })).status === 401);
+  check('无效骰娘密钥被拒绝', (await call('POST', '/api/v2/live/start', { body: startBody, headers: { Authorization: 'Bearer bdc_diceflats_wrong' } })).status === 403);
   const started = await call('POST', '/api/v2/live/start', { body: startBody, headers: { Authorization: `Bearer ${GOOD_KEY}` } });
-  check('有效金钥可开始实时日志', started.status === 200 && started.json.token && parseShare(started.json.url), started.text);
+  check('有效骰娘密钥可开始实时日志', started.status === 200 && started.json.token && parseShare(started.json.url), started.text);
   const live = started.json;
   const auth = { Authorization: `Bearer ${live.token}` };
   const item = (n, extra = {}) => ({
@@ -228,7 +228,7 @@ try {
   const gap = await call('POST', `/api/v2/live/${live.key}/append`, { body: { events: [item(7)] }, headers: auth });
   check('序号有缺口时拒收并回报 last_seq', gap.status === 409 && gap.json.last_seq === 4);
   check('令牌错误不能追加', (await call('POST', `/api/v2/live/${live.key}/append`, { body: { events: [item(5)] }, headers: { Authorization: 'Bearer nope' } })).status === 401);
-  check('金钥本身不能当作会话令牌', (await call('POST', `/api/v2/live/${live.key}/append`, { body: { events: [item(5)] }, headers: { Authorization: `Bearer ${GOOD_KEY}` } })).status === 401);
+  check('骰娘密钥本身不能当作会话令牌', (await call('POST', `/api/v2/live/${live.key}/append`, { body: { events: [item(5)] }, headers: { Authorization: `Bearer ${GOOD_KEY}` } })).status === 401);
 
   const polled = await call('GET', `/api/v2/live/${live.key}/events?password=${live.password}&after=2`);
   check('events 返回 after 之后的消息', polled.json.status === 'live' && polled.json.events.map((e) => e.seq).join() === '3,4');
@@ -409,7 +409,7 @@ try {
   const metaShare = parseShare((await call('PUT', '/api/dice/log', { raw: metaForm })).json.url);
   await new Promise((done) => setTimeout(done, 300));
   let found = await adminList('bot=40004');
-  check('未带金钥时骰娘号取自 uniform_id', found.total === 1 && found.items[0].key === metaShare.key && found.items[0].group_id === '7777');
+  check('未带骰娘密钥时骰娘号取自 uniform_id', found.total === 1 && found.items[0].key === metaShare.key && found.items[0].group_id === '7777');
   const groupForm = new FormData();
   groupForm.set('name', 'DiceNext 上传的团');
   groupForm.set('uniform_id', 'QQ-Group:123123');
@@ -446,23 +446,23 @@ try {
   check('详情带参与者名单与消息条数', detail.json.participants[0].user_id === '10001' && found.items[0].item_count === 1, detail.json);
 
   const keyedForm = new FormData();
-  keyedForm.set('name', '带金钥上传的团');
+  keyedForm.set('name', '带骰娘密钥上传的团');
   keyedForm.set('uniform_id', 'QQ:55555');
   keyedForm.set('bot_id', '55555');
   keyedForm.set('group_id', '8888');
   keyedForm.set('file', new Blob([payload]), 'log.bin');
   const keyedShare = parseShare((await call('PUT', '/api/dice/log', { raw: keyedForm, headers: { Authorization: `Bearer ${GOOD_KEY}` } })).json.url);
   found = await adminList('bot=20002');
-  check('带金钥上传时骰娘号以账号站登记的为准', found.total === 1 && found.items[0].key === keyedShare.key);
+  check('带骰娘密钥上传时骰娘号以账号站登记的为准', found.total === 1 && found.items[0].key === keyedShare.key);
   const badKeyForm = new FormData();
-  badKeyForm.set('name', '金钥无效的团');
+  badKeyForm.set('name', '骰娘密钥无效的团');
   badKeyForm.set('uniform_id', 'QQ:66666');
   badKeyForm.set('file', new Blob([payload]), 'log.bin');
-  check('金钥无效的上传照常接收', (await call('PUT', '/api/dice/log', { raw: badKeyForm, headers: { Authorization: 'Bearer bdc_wrong_key' } })).status === 200);
+  check('骰娘密钥无效的上传照常接收', (await call('PUT', '/api/dice/log', { raw: badKeyForm, headers: { Authorization: 'Bearer bdc_wrong_key' } })).status === 200);
 
   // ── 骰娘查询自己名下的日志 ──
-  check('查询日志需要金钥', (await call('GET', '/api/v2/logs')).status === 401);
-  check('无效金钥不能查询', (await call('GET', '/api/v2/logs', { headers: { Authorization: 'Bearer bdc_wrong_key' } })).status === 403);
+  check('查询日志需要骰娘密钥', (await call('GET', '/api/v2/logs')).status === 401);
+  check('无效骰娘密钥不能查询', (await call('GET', '/api/v2/logs', { headers: { Authorization: 'Bearer bdc_wrong_key' } })).status === 403);
   const liveMeta = (await call('POST', '/api/v2/live/start', {
     body: { name: '查询用实时团', uniform_id: 'QQ:20002', group_id: '9999' }, headers: { Authorization: `Bearer ${GOOD_KEY}` },
   })).json;
@@ -478,7 +478,7 @@ try {
   // ── 续写：另开一份 ──
   const keyAuth = { Authorization: `Bearer ${GOOD_KEY}` };
   const forkPath = `/api/v2/live/${liveMeta.key}/fork`;
-  check('续写需要金钥', (await call('POST', forkPath, { body: { password: liveMeta.password } })).status === 401);
+  check('续写需要骰娘密钥', (await call('POST', forkPath, { body: { password: liveMeta.password } })).status === 401);
   check('续写需要原日志的密码', (await call('POST', forkPath, { body: { password: '000000' }, headers: keyAuth })).status === 404);
   const forked = await call('POST', forkPath, { body: { password: liveMeta.password, group_id: '9999' }, headers: keyAuth });
   check('续写得到一份新的日志与当前序号', forked.status === 200 && forked.json.key !== liveMeta.key && forked.json.url !== liveMeta.url
@@ -496,6 +496,34 @@ try {
   check('已完结的日志也能作为起点', fromDone.status === 200 && fromDone.json.last_seq === 1 && fromDone.json.name === '接着写', fromDone.text);
   await call('POST', `/api/v2/live/${fromDone.json.key}/end`, { headers: { Authorization: `Bearer ${fromDone.json.token}` } });
   check('起点日志不受影响', (await loadItems(metaShare.key, metaShare.password)).items.length === 1);
+
+  // ── 本站签发的骰娘密钥 ──
+  check('签发数量超出范围被拒绝', (await call('POST', '/admin/api/keys', { body: { count: 51 }, headers: admin2 })).status === 400);
+  const issued = await call('POST', '/admin/api/keys', { body: { name: '自建骰娘', bot_id: 'QQ:61616', count: 3 }, headers: admin2 });
+  check('可一次签发多把骰娘密钥', issued.status === 200 && issued.json.items.length === 3
+    && issued.json.items.every((k) => k.key.startsWith('dnlog_') && k.bot_id === '61616')
+    && new Set(issued.json.items.map((k) => k.key)).size === 3 && issued.json.items[1].name === '自建骰娘 #2', issued.text);
+  const listed = await call('GET', '/admin/api/keys', { headers: admin2 });
+  check('列表不含密钥明文与哈希', listed.json.items.length === 3 && !listed.text.includes(issued.json.items[0].key)
+    && listed.json.items.every((k) => k.key === undefined && k.key_hash === undefined && k.key_prefix.length === 12), listed.text);
+  const localAuth = { Authorization: `Bearer ${issued.json.items[0].key}` };
+  const localLive = await call('POST', '/api/v2/live/start', { body: { name: '自建站的团', uniform_id: 'QQ-Group:5151' }, headers: localAuth });
+  check('本站签发的密钥可开始实时日志', localLive.status === 200, localLive.text);
+  await call('POST', `/api/v2/live/${localLive.json.key}/append`, { body: { events: [item(1)] }, headers: { Authorization: `Bearer ${localLive.json.token}` } });
+  await call('POST', `/api/v2/live/${localLive.json.key}/end`, { headers: { Authorization: `Bearer ${localLive.json.token}` } });
+  const localLogs = await call('GET', '/api/v2/logs', { headers: localAuth });
+  check('日志记到签发时填的骰娘号名下', localLogs.json.total === 1 && localLogs.json.items[0].bot_id === '61616' && localLogs.json.items[0].group_id === '5151', localLogs.text);
+  check('同一骰娘号的另一把密钥也能查到', (await call('GET', '/api/v2/logs', { headers: { Authorization: `Bearer ${issued.json.items[1].key}` } })).json.total === 1);
+  check('使用过的密钥记下最后使用时间', (await call('GET', '/admin/api/keys', { headers: admin2 })).json.items.find((k) => k.id === issued.json.items[0].id).last_used_at !== '');
+  const keyId = issued.json.items[0].id;
+  check('可停用骰娘密钥', (await call('PATCH', `/admin/api/keys/${keyId}`, { body: { enabled: false }, headers: admin2 })).json.enabled === false);
+  check('停用后不能再使用', (await call('GET', '/api/v2/logs', { headers: localAuth })).status === 403);
+  check('可重新启用', (await call('PATCH', `/admin/api/keys/${keyId}`, { body: { enabled: true }, headers: admin2 })).json.enabled === true
+    && (await call('GET', '/api/v2/logs', { headers: localAuth })).status === 200);
+  check('可删除骰娘密钥', (await call('DELETE', `/admin/api/keys/${keyId}`, { headers: admin2 })).status === 200
+    && (await call('GET', '/api/v2/logs', { headers: localAuth })).status === 403);
+  check('删除不存在的密钥返回 404', (await call('DELETE', `/admin/api/keys/${keyId}`, { headers: admin2 })).status === 404);
+  check('设置页列出可用的校验方式', (await call('GET', '/admin/api/settings', { headers: admin2 })).json.live_auth_modes.join() === 'local,bdc');
 
   // ── 站点配置即时生效 ──
   const siteNow = (await call('GET', '/admin/api/settings', { headers: admin2 })).json.site;
