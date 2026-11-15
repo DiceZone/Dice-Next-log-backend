@@ -1,0 +1,20 @@
+services:
+  dnlog:
+    build: .
+    image: dice-next-log-backend:local
+    container_name: dice-next-log-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      HOST: 0.0.0.0
+    volumes:
+      # 数据目录（数据库与本地缓存）。容器以 uid 1000 运行，首次部署前请先执行：
+      #   mkdir -p data && chown 1000:1000 data
+      - ./data:/data
+      # 其他存储位置：把挂载点映射进容器，再在 .env 的 STORAGES 里写容器内的路径。
+      # rslave 让宿主机重新挂载后容器里也能看到。
+      # - /mnt/cos:/storage/cos:rslave
+    ports:
+      # 只绑本机，由反向代理对外提供服务。
+      - "127.0.0.1:8787:8787"

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>后台管理 - Dice!Next Log Service</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/admin" class="navbar-brand">
+      <span class="navbar-logo"><img src="/logo.svg" alt="Dice!Next Logo"></span>
+      Dice!Next Log Service
+      <span class="navbar-version">后台管理</span>
+    </a>
+    <div class="navbar-user" id="navbar-user" hidden>
+      <span id="navbar-username"></span>
+      <button class="btn" type="button" id="logout">退出登录</button>
+    </div>
+  </nav>
+  <div id="app" class="admin-container"></div>
+  <div id="toast" class="toast" hidden></div>
+  <script src="/admin/admin.js"></script>
+</body>
+</html>
