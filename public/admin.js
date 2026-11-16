@@ -164,7 +164,7 @@
   // ── 主界面 ──────────────────────────────────────────────
 
   var currentTab = 'logs';
-  var TABS = [['logs', '日志'], ['keys', '骰娘密钥'], ['settings', '设置'], ['account', '账号']];
+  var TABS = [['logs', '日志'], ['keys', '骰娘密钥'], ['bans', 'IP 封锁'], ['settings', '设置'], ['account', '账号']];
 
   function renderMain() {
     var content = h('div', {});
@@ -177,6 +177,7 @@
     app.replaceChildren(tabs, content);
     if (currentTab === 'logs') renderLogs(content);
     else if (currentTab === 'keys') renderKeys(content);
+    else if (currentTab === 'bans') renderBans(content);
     else if (currentTab === 'settings') renderSettings(content);
     else renderAccount(content);
   }
@@ -519,6 +520,101 @@
             h('div', { class: 'form-actions' }, h('button', { class: 'btn btn-primary', type: 'submit', text: '签发' }))))),
       h('div', { class: 'card' }, h('div', { class: 'card-title', text: '已签发的骰娘密钥' }), listEl));
     load();
+  }
+
+  // ── IP 封锁 ─────────────────────────────────────────────
+
+  var AUTOBAN_FIELDS = [
+    ['autoban_threshold', '可疑请求次数', '达到此次数即封锁。可疑请求指被拒绝、地址或日志不存在、触发限频的请求。'],
+    ['autoban_window_minutes', '统计时间（分钟）', '在这段时间内累计上面的次数。'],
+    ['autoban_hours', '封锁时长（小时）', '填 0 表示永久封锁。'],
+  ];
+
+  function renderBans(root) {
+    var targetInput = h('input', { type: 'text', maxlength: '64', placeholder: '1.2.3.4' });
+    var reasonInput = h('input', { type: 'text', maxlength: '200' });
+    var hoursInput = h('input', { type: 'number', min: '0', max: '87600', step: '1', value: '0' });
+    var listEl = h('div', {});
+    var autoCard = h('div', { class: 'card' });
+
+    function add(event) {
+      event.preventDefault();
+      api('POST', 'bans', { target: targetInput.value.trim(), reason: reasonInput.value.trim(), hours: Number(hoursInput.value) })
+        .then(function () {
+          targetInput.value = '';
+          reasonInput.value = '';
+          toast('已加入封锁名单。');
+          load();
+        }).catch(showError);
+    }
+
+    function load() {
+      api('GET', 'bans').then(function (data) {
+        if (data.items.length === 0) {
+          listEl.replaceChildren(h('div', { class: 'empty', text: '封锁名单是空的。' }));
+          return;
+        }
+        var rows = data.items.map(function (ban) {
+          return h('tr', {},
+            h('td', { class: 'mono', data: ban.target }),
+            h('td', { text: ban.source === 'auto' ? '自动' : '手动' }),
+            ban.source === 'auto' ? h('td', { class: 'name', text: ban.reason }) : h('td', { class: 'name', title: ban.reason, data: ban.reason }),
+            h('td', { data: formatTime(ban.created_at) }),
+            ban.expires_at ? h('td', { data: formatTime(ban.expires_at) }) : h('td', { text: '永久' }),
+            h('td', { class: 'actions' }, h('button', {
+              class: 'btn-link', type: 'button', text: '解除',
+              onclick: function () {
+                api('DELETE', 'bans/' + ban.id).then(function () { toast('已解除封锁。'); load(); }).catch(showError);
+              },
+            })));
+        });
+        listEl.replaceChildren(h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['IP 或网段', '来源', '理由', '封锁时间', '到期时间', ''].map(function (text) { return h('th', { text: text }); }))),
+          h('tbody', {}, rows))));
+      }).catch(showError);
+    }
+
+    function loadAuto() {
+      api('GET', 'settings').then(function (data) {
+        var inputs = {};
+        var enabled = h('input', { type: 'checkbox', id: 'autoban-enabled', checked: data.values.autoban_enabled === 1 });
+        var grid = h('div', { class: 'settings-grid' }, AUTOBAN_FIELDS.map(function (def) {
+          var limit = data.limits[def[0]];
+          var input = h('input', { type: 'number', min: String(limit.min), max: String(limit.max), step: '1', value: String(data.values[def[0]]) });
+          inputs[def[0]] = input;
+          return field(def[1], input, def[2]);
+        }));
+        autoCard.replaceChildren(
+          h('div', { class: 'card-title', text: '自动封锁' }),
+          h('div', { class: 'card-body' },
+            h('div', { class: 'field-inline' }, enabled, h('label', { for: 'autoban-enabled', text: '启用自动封锁' })),
+            grid,
+            h('div', { class: 'form-actions' }, h('button', {
+              class: 'btn btn-primary', type: 'button', text: '保存',
+              onclick: function () {
+                var body = { autoban_enabled: enabled.checked ? 1 : 0 };
+                Object.keys(inputs).forEach(function (name) { body[name] = Number(inputs[name].value); });
+                api('PUT', 'settings', body).then(function () { toast('设置已保存。'); }).catch(showError);
+              },
+            }))));
+      }).catch(showError);
+    }
+
+    root.replaceChildren(
+      h('div', { class: 'card' },
+        h('div', { class: 'card-title', text: '手动封锁' }),
+        h('div', { class: 'card-body' },
+          h('form', { onsubmit: add },
+            h('div', { class: 'settings-grid' },
+              field('IP 或网段', targetInput, '单个 IP，或 IPv4 网段（如 1.2.3.0/24）。'),
+              field('封锁时长（小时）', hoursInput, '填 0 表示永久封锁。'),
+              field('理由', reasonInput)),
+            h('p', { class: 'hint', text: '被封锁的 IP 访问本站的任何地址都会被拒绝。内网与本机地址不会被封锁。' }),
+            h('div', { class: 'form-actions' }, h('button', { class: 'btn btn-primary', type: 'submit', text: '封锁' }))))),
+      autoCard,
+      h('div', { class: 'card' }, h('div', { class: 'card-title', text: '封锁名单' }), listEl));
+    load();
+    loadAuto();
   }
 
   // ── 设置 ────────────────────────────────────────────────

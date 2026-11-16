@@ -85,6 +85,8 @@ const env = {
   LEGACY_UPSTREAM_URL: `http://127.0.0.1:${FAKE_PORT}/old`,
   LOG_RETENTION_DAYS: '60',
   STORAGES: `cos=${cosDir}`,
+  // 测试都从本机发出；用这个请求头冒充不同的访客 IP，才测得到封锁。
+  TRUST_PROXY_HEADER: 'x-test-ip',
 };
 const server = spawn(process.execPath, ['server.mjs'], { cwd: ROOT, env });
 let output = '';
@@ -524,6 +526,47 @@ try {
     && (await call('GET', '/api/v2/logs', { headers: localAuth })).status === 403);
   check('删除不存在的密钥返回 404', (await call('DELETE', `/admin/api/keys/${keyId}`, { headers: admin2 })).status === 404);
   check('设置页列出可用的校验方式', (await call('GET', '/admin/api/settings', { headers: admin2 })).json.live_auth_modes.join() === 'local,bdc');
+
+  // ── IP 封锁 ──
+  const from = (ip) => ({ 'x-test-ip': ip });
+  const adminFrom = { ...admin2, 'x-test-ip': '203.0.113.9' };
+  check('不合法的封锁目标被拒绝', (await call('POST', '/admin/api/bans', { body: { target: 'not-an-ip' }, headers: admin2 })).status === 400);
+  check('内网地址不能封锁', (await call('POST', '/admin/api/bans', { body: { target: '192.168.1.5' }, headers: admin2 })).status === 400);
+  check('不能封锁自己当前的 IP', (await call('POST', '/admin/api/bans', { body: { target: '203.0.113.0/24' }, headers: adminFrom })).status === 400);
+  check('封锁前可正常访问', (await call('GET', '/api/v2/info', { headers: from('198.51.100.7') })).status === 200);
+  const banned = await call('POST', '/admin/api/bans', { body: { target: '198.51.100.7', reason: '测试封锁', hours: 0 }, headers: admin2 });
+  check('可手动封锁 IP', banned.status === 200 && banned.json.source === 'manual' && banned.json.expires_at === '', banned.text);
+  const blocked = await call('GET', '/api/v2/info', { headers: from('198.51.100.7') });
+  check('被封锁的 IP 访问任何地址都被拒绝', blocked.status === 403 && blocked.json.error === 'IP_BANNED'
+    && (await call('GET', '/', { headers: from('198.51.100.7') })).status === 403
+    && (await call('GET', '/admin/api/state', { headers: from('198.51.100.7') })).status === 403);
+  check('其他 IP 不受影响', (await call('GET', '/api/v2/info', { headers: from('198.51.100.8') })).status === 200);
+  const range = await call('POST', '/admin/api/bans', { body: { target: '198.51.100.77/24', hours: 2 }, headers: admin2 });
+  check('可封锁网段并设定期限', range.json.target === '198.51.100.0/24' && range.json.expires_at !== ''
+    && (await call('GET', '/api/v2/info', { headers: from('198.51.100.8') })).status === 403, range.text);
+  check('解除后恢复访问', (await call('DELETE', `/admin/api/bans/${range.json.id}`, { headers: admin2 })).status === 200
+    && (await call('GET', '/api/v2/info', { headers: from('198.51.100.8') })).status === 200);
+  await call('DELETE', `/admin/api/bans/${banned.json.id}`, { headers: admin2 });
+
+  // 自动封锁：短时间内可疑请求过多
+  await call('PUT', '/admin/api/settings', { body: { autoban_threshold: 5, autoban_window_minutes: 10, autoban_hours: 1 }, headers: admin2 });
+  let probeStatus = [];
+  for (let i = 0; i < 6; i++) probeStatus.push((await call('GET', `/wp-login-${i}.php`, { headers: from('192.0.2.44') })).status);
+  check('可疑请求达到次数后自动封锁', probeStatus.join() === '404,404,404,404,404,403', probeStatus.join());
+  const autoList = (await call('GET', '/admin/api/bans', { headers: admin2 })).json.items;
+  check('自动封锁记入名单并带期限', autoList.length === 1 && autoList[0].target === '192.0.2.44' && autoList[0].source === 'auto'
+    && autoList[0].expires_at !== '' && autoList[0].reason === '自动封锁：10 分钟内出现 5 次可疑请求', autoList);
+  check('正常请求不计入', (await Promise.all(Array.from({ length: 8 }, () => call('GET', '/api/v2/info', { headers: from('192.0.2.45') })))).every((r) => r.status === 200));
+  const unbanned = await new Promise((done) => {
+    const child = spawn(process.execPath, ['cli.mjs', 'unban', '192.0.2.44'], { cwd: ROOT, env });
+    let stdout = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.on('close', () => done(stdout));
+  });
+  check('可在服务器用指令解除封锁', unbanned.includes('已解除 1 条封锁'), unbanned);
+  await call('PUT', '/admin/api/settings', { body: { autoban_enabled: 0 }, headers: admin2 });
+  for (let i = 0; i < 8; i++) await call('GET', `/probe-${i}`, { headers: from('192.0.2.46') });
+  check('关闭自动封锁后不再封锁', (await call('GET', '/api/v2/info', { headers: from('192.0.2.46') })).status === 200);
 
   // ── 站点配置即时生效 ──
   const siteNow = (await call('GET', '/admin/api/settings', { headers: admin2 })).json.site;

@@ -133,6 +133,11 @@ export const SETTING_DEFS = {
   live_idle_hours: { def: 360, min: 1, max: 8760 },
   // 单份实时日志累计的大小上限（MB）。
   live_max_mb: { def: 20, min: 1, max: 500 },
+  // 自动封锁：window 分钟内出现 threshold 次可疑请求的 IP 封锁 hours 小时（0 为永久）。
+  autoban_enabled: { def: 1, min: 0, max: 1 },
+  autoban_threshold: { def: 40, min: 5, max: 100000 },
+  autoban_window_minutes: { def: 10, min: 1, max: 1440 },
+  autoban_hours: { def: 24, min: 0, max: 87600 },
   // 同一把骰娘密钥可同时进行的实时日志数量。
   live_max_per_owner: { def: 20, min: 1, max: 1000 },
 };

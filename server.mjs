@@ -8,6 +8,7 @@ import { HttpError, send, cors, clientIp } from './src/http.mjs';
 import { ensureSetupCode, pruneSessions } from './src/auth.mjs';
 import { cleanupExpired, finalizeIdle, backfillIds } from './src/store.mjs';
 import { kickMover, getTarget, storageNames } from './src/storage.mjs';
+import { findBan, recordResponse } from './src/bans.mjs';
 import { matchLegacy } from './src/routes/legacy.mjs';
 import { matchLive } from './src/routes/live.mjs';
 import { matchAdmin } from './src/routes/admin.mjs';
@@ -75,6 +76,11 @@ const server = createServer(async (req, res) => {
     return send(res, 400, 'Bad Request');
   }
   const ctx = { req, res, url, path: url.pathname, method: req.method, ip: clientIp(req) };
+  // 被封锁的 IP 一律拒绝；其余请求结束后按状态码记一笔，供自动封锁判断。
+  if (findBan(ctx.ip)) {
+    return send(res, 403, { success: false, error: 'IP_BANNED', message: 'Your IP address has been blocked.' }, { Connection: 'close' });
+  }
+  res.on('finish', () => recordResponse(ctx.ip, res.statusCode));
   try {
     await route(ctx);
   } catch (err) {

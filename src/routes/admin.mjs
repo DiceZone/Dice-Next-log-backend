@@ -14,6 +14,7 @@ import { liveAuthModes } from '../bdc.mjs';
 import { listKeys, issueKeys, updateKey, deleteKey } from '../keys.mjs';
 import { site, siteValues, updateSite } from '../site.mjs';
 import { importStatus, startImport, stopImport } from '../import-legacy.mjs';
+import { listBans, addBan, removeBan, normalizeTarget, normalizeIp, isPrivateIp, matchesTarget } from '../bans.mjs';
 import {
   LOCAL, storageNames, hasStorage, storagePath, initialized, draining, setDraining,
   isOnline, initStorage, getTarget, setTarget, moverStatus, kickMover,
@@ -383,6 +384,28 @@ function removeKey({ res }, id) {
   send(res, 200, { success: true });
 }
 
+// ─── IP 封锁 ────────────────────────────────────────────────
+
+function getBans({ res, ip }) {
+  send(res, 200, { items: listBans(), your_ip: normalizeIp(ip) });
+}
+
+async function postBan({ req, res, ip }) {
+  const body = await readJson(req, 4096);
+  const target = normalizeTarget(body.target);
+  if (!target) throw fail(400, '请填写有效的 IP 地址或 IPv4 网段（如 1.2.3.4 或 1.2.3.0/24）。');
+  if (!target.includes('/') && isPrivateIp(target)) throw fail(400, '内网与本机地址不会被封锁。');
+  if (matchesTarget(target, ip)) throw fail(400, '不能封锁您当前使用的 IP。');
+  const hours = body.hours === undefined ? 0 : Number(body.hours);
+  if (!Number.isInteger(hours) || hours < 0 || hours > 87600) throw fail(400, '封锁时长须为 0–87600 的整数小时。');
+  send(res, 200, addBan({ target, reason: String(body.reason || '').trim(), source: 'manual', hours }));
+}
+
+function deleteBan({ res }, id) {
+  if (!removeBan(id)) throw fail(404, '该封锁记录不存在。');
+  send(res, 200, { success: true });
+}
+
 // ─── 旧站迁移 ───────────────────────────────────────────────
 
 function getImport({ res }) {
@@ -423,6 +446,8 @@ const PRIVATE = {
   'GET settings': getSettings,
   'PUT settings': putSettings,
   'POST cleanup': runCleanup,
+  'GET bans': getBans,
+  'POST bans': postBan,
   'GET keys': getKeys,
   'POST keys': postKeys,
   'GET import': getImport,
@@ -442,6 +467,8 @@ const KEY_ROUTE = /^keys\/(\d{1,10})$/;
 function findPrivate(method, sub) {
   const direct = PRIVATE[`${method} ${sub}`];
   if (direct) return direct;
+  const banMatch = /^bans\/(\d{1,10})$/.exec(sub);
+  if (banMatch) return method === 'DELETE' ? (ctx) => deleteBan(ctx, Number(banMatch[1])) : null;
   const keyMatch = KEY_ROUTE.exec(sub);
   if (keyMatch) {
     const id = Number(keyMatch[1]);

@@ -3,9 +3,11 @@
 //   node cli.mjs setup-code           显示当前的首次设置码
 //   node cli.mjs storage-init <名称>  初始化 STORAGES 中登记的存储位置
 //   node cli.mjs import-legacy <旧站地址> <导出令牌>  把旧站的全部日志按原索引导入
+//   node cli.mjs unban <IP|all>       解除对某个 IP 的封锁，或清空封锁名单
 import { resetAdmin, ensureSetupCode, hasAdmin } from './src/auth.mjs';
 import { LOCAL, hasStorage, storagePath, initStorage, getTarget } from './src/storage.mjs';
 import { importLegacy } from './src/import-legacy.mjs';
+import { unban } from './src/bans.mjs';
 
 const [command, argument, extra] = process.argv.slice(2);
 
@@ -15,6 +17,7 @@ function usage(code) {
   console.log('  node cli.mjs setup-code           显示当前的首次设置码');
   console.log('  node cli.mjs storage-init <名称>  初始化 STORAGES 中登记的存储位置');
   console.log('  node cli.mjs import-legacy <旧站地址> <导出令牌>  把旧站的全部日志按原索引导入');
+  console.log('  node cli.mjs unban <IP|all>       解除对某个 IP 的封锁，或清空封锁名单');
   process.exit(code);
 }
 
@@ -37,6 +40,9 @@ if (command === 'reset-admin') {
   await initStorage(argument);
   console.log(`存储位置「${argument}」已初始化：${storagePath(argument)}`);
   console.log(`当前写入位置：${getTarget()}`);
+} else if (command === 'unban') {
+  if (!argument) usage(1);
+  console.log(`已解除 ${unban(argument)} 条封锁，运行中的服务最多一分钟后生效。`);
 } else if (command === 'import-legacy') {
   if (!argument || !extra) usage(1);
   const ok = await importLegacy(argument, extra);

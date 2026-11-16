@@ -236,6 +236,40 @@ window.DNLOG_I18N = (function () {
     '骰娘密钥的数量已达上限。': 'The maximum number of bot keys has been reached.',
     '该骰娘密钥不存在。': 'That bot key does not exist.',
 
+    // ── IP 封锁 ──
+    'IP 封锁': 'IP blocking',
+    '手动封锁': 'Block manually',
+    'IP 或网段': 'IP or range',
+    '单个 IP，或 IPv4 网段（如 1.2.3.0/24）。': 'A single IP, or an IPv4 range such as 1.2.3.0/24.',
+    '封锁时长（小时）': 'Block duration (hours)',
+    '填 0 表示永久封锁。': '0 blocks permanently.',
+    '理由': 'Reason',
+    '被封锁的 IP 访问本站的任何地址都会被拒绝。内网与本机地址不会被封锁。':
+      'A blocked IP is refused on every address of this site. Private and loopback addresses are never blocked.',
+    '封锁': 'Block',
+    '已加入封锁名单。': 'Added to the block list.',
+    '封锁名单': 'Block list',
+    '封锁名单是空的。': 'The block list is empty.',
+    '自动': 'Automatic',
+    '手动': 'Manual',
+    '封锁时间': 'Blocked at',
+    '永久': 'Permanent',
+    '解除': 'Unblock',
+    '已解除封锁。': 'Unblocked.',
+    '自动封锁': 'Automatic blocking',
+    '启用自动封锁': 'Enable automatic blocking',
+    '可疑请求次数': 'Suspicious requests',
+    '达到此次数即封锁。可疑请求指被拒绝、地址或日志不存在、触发限频的请求。':
+      'An IP is blocked when it reaches this count. Suspicious means refused, not found, or rate-limited.',
+    '统计时间（分钟）': 'Counting window (minutes)',
+    '在这段时间内累计上面的次数。': 'The count above is accumulated over this period.',
+    '请填写有效的 IP 地址或 IPv4 网段（如 1.2.3.4 或 1.2.3.0/24）。':
+      'Enter a valid IP address or IPv4 range, such as 1.2.3.4 or 1.2.3.0/24.',
+    '内网与本机地址不会被封锁。': 'Private and loopback addresses are never blocked.',
+    '不能封锁您当前使用的 IP。': 'You cannot block the IP you are using now.',
+    '封锁时长须为 0–87600 的整数小时。': 'The duration must be a whole number of hours from 0 to 87600.',
+    '该封锁记录不存在。': 'That block entry does not exist.',
+
     // ── 账号 ──
     '修改密码': 'Change password',
     '当前密码': 'Current password',
@@ -304,6 +338,7 @@ window.DNLOG_I18N = (function () {
     [/^将完结日志「([\s\S]*)」，完结后骰娘无法继续向它追加消息。$/, 'This finishes the log "$1". The bot can no longer append to it.'],
     [/^共 (\d+) 条消息，以下为前 (\d+) 条：$/, '$1 messages; the first $2 are shown:'],
     [/^共 (\d+) 条消息：$/, '$1 messages:'],
+    [/^自动封锁：(\d+) 分钟内出现 (\d+) 次可疑请求$/, 'Automatic: $2 suspicious requests within $1 minutes'],
     [/^将删除骰娘密钥「([\s\S]*)」，使用它的骰娘将无法再上传实时日志或查询日志。$/,
       'This deletes the bot key "$1". Bots using it can no longer upload live logs or query logs.'],
     [/^将在「([\s\S]*)」写入标记文件，之后该位置可用于存放日志。请先确认该目录已正确挂载。$/,
