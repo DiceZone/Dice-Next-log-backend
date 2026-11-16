@@ -62,7 +62,10 @@ export function resolveIds({ botId, groupId, uniformId }) {
   const bare = bareId(uniform);
   if (bare && bare !== bot && bare !== group) {
     const prefix = uniform.slice(0, Math.max(uniform.lastIndexOf(':'), 0));
-    if (/group|channel|guild/i.test(prefix)) {
+    if (/^ui$/i.test(prefix)) {
+      // 从海豹的管理后台手动推送的日志，uniform_id 是固定的 UI:1000，不是哪个骰娘的账号。
+      // 留空，稍后从日志内容里认。
+    } else if (/group|channel|guild/i.test(prefix)) {
       if (!group) group = bare;
     } else if (!bot) {
       bot = bare;
@@ -173,10 +176,14 @@ function indexData(key, client, data) {
   }
 }
 
-// 给早先入库、骰娘号或群号还空着的日志补一遍（只做一次，在后台慢慢跑）。
+// 给早先入库、骰娘号或群号还空着的日志补一遍（每一轮只做一次，在后台慢慢跑）。
+// v1：全部空着的；v2：uniform_id 是 UI:1000 的（之前被误记成骰娘号 1000，启动时已清空）。
 export async function backfillIds() {
-  if (getRaw('backfill.ids_v1')) return;
-  const rows = db.prepare("SELECT key FROM logs WHERE status = 'done' AND (bot_id = '' OR group_id = '')").all();
+  const first = !getRaw('backfill.ids_v1');
+  if (!first && getRaw('backfill.ids_v2')) return;
+  const rows = first
+    ? db.prepare("SELECT key FROM logs WHERE status = 'done' AND (bot_id = '' OR group_id = '')").all()
+    : db.prepare("SELECT key FROM logs WHERE status = 'done' AND bot_id = '' AND uniform_id LIKE 'UI:%'").all();
   let filled = 0;
   for (const { key } of rows) {
     const log = getLog(key);
@@ -194,7 +201,8 @@ export async function backfillIds() {
     // 让出事件循环，不挡住正常请求。
     await new Promise((done) => setImmediate(done));
   }
-  putRaw('backfill.ids_v1', nowIso());
+  putRaw('backfill.ids_v1', getRaw('backfill.ids_v1') || nowIso());
+  putRaw('backfill.ids_v2', nowIso());
   if (rows.length) console.log(`[补齐] 检查 ${rows.length} 份日志，补上骰娘号或群号 ${filled} 份`);
 }
 

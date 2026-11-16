@@ -437,6 +437,8 @@ try {
   check('只给了群号时从内容认出骰娘号', fromDn.group_id === '456456' && fromDn.bot_id === '80008', fromDn);
   const fromSeal = await inferUpload('QQ:80008');
   check('只给了骰娘号时从内容认出群号', fromSeal.bot_id === '80008' && fromSeal.group_id === '456456', fromSeal);
+  const fromUi = await inferUpload('UI:1000');
+  check('海豹后台推送的 UI:1000 不当作骰娘号，改从内容认', fromUi.bot_id === '80008' && fromUi.group_id === '456456', fromUi);
   const explicit = await inferUpload('QQ:70007');
   check('上传方给的骰娘号优先于内容里认出的', explicit.bot_id === '70007' && explicit.group_id === '456456', explicit);
   found = await adminList('bot=40004');
@@ -567,6 +569,30 @@ try {
   await call('PUT', '/admin/api/settings', { body: { autoban_enabled: 0 }, headers: admin2 });
   for (let i = 0; i < 8; i++) await call('GET', `/probe-${i}`, { headers: from('192.0.2.46') });
   check('关闭自动封锁后不再封锁', (await call('GET', '/api/v2/info', { headers: from('192.0.2.46') })).status === 200);
+
+  // ── 回源校验 ──
+  const originSecret = 'origin-secret-0123456789abcdef';
+  const originSite = { origin_auth_header: 'X-Origin-Auth', origin_auth_token: originSecret };
+  check('回源校验密钥太短被拒绝', (await call('PUT', '/admin/api/settings', { body: { site: { origin_auth_header: 'x-origin-auth', origin_auth_token: 'short' } }, headers: admin2 })).status === 400);
+  const unverified = await call('PUT', '/admin/api/settings', { body: { site: originSite }, headers: admin2 });
+  check('当前请求没带请求头时不能开启回源校验', unverified.status === 400 && unverified.json.field === 'origin_auth_unverified', unverified.text);
+  check('未开启时照常访问', (await call('GET', '/api/v2/info')).status === 200);
+  const viaCdn = { 'x-origin-auth': originSecret };
+  const enabledOrigin = await call('PUT', '/admin/api/settings', { body: { site: originSite }, headers: { ...admin2, ...viaCdn } });
+  check('带着相符请求头时可开启回源校验', enabledOrigin.status === 200 && enabledOrigin.json.site.origin_auth_token_set === true
+    && enabledOrigin.json.site.origin_auth_token === undefined, enabledOrigin.text);
+  check('没带请求头的请求被拒绝', (await call('GET', '/api/v2/info')).status === 403 && (await call('GET', '/admin')).status === 403);
+  check('请求头不对的请求被拒绝', (await call('GET', '/api/v2/info', { headers: { 'x-origin-auth': 'wrong-secret-wrong-secret' } })).status === 403);
+  check('带着请求头的请求照常', (await call('GET', '/api/v2/info', { headers: viaCdn })).status === 200);
+  const cliOff = await new Promise((done) => {
+    const child = spawn(process.execPath, ['cli.mjs', 'origin-auth', 'off'], { cwd: ROOT, env });
+    let stdout = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.on('close', () => done(stdout));
+  });
+  check('可在服务器用指令关闭回源校验', cliOff.includes('回源校验已关闭'), cliOff);
+  check('清空请求头名即关闭', (await call('PUT', '/admin/api/settings', { body: { site: { origin_auth_header: '' } }, headers: { ...admin2, ...viaCdn } })).status === 200
+    && (await call('GET', '/api/v2/info')).status === 200);
 
   // ── 站点配置即时生效 ──
   const siteNow = (await call('GET', '/admin/api/settings', { headers: admin2 })).json.site;

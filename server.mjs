@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config, ROOT } from './src/config.mjs';
-import { site } from './src/site.mjs';
+import { site, originAllowed } from './src/site.mjs';
 import { HttpError, send, cors, clientIp } from './src/http.mjs';
 import { ensureSetupCode, pruneSessions } from './src/auth.mjs';
 import { cleanupExpired, finalizeIdle, backfillIds } from './src/store.mjs';
@@ -74,6 +74,10 @@ const server = createServer(async (req, res) => {
     url = new URL(req.url, 'http://local');
   } catch {
     return send(res, 400, 'Bad Request');
+  }
+  // 开了回源校验时，不是从 CDN 回源来的请求直接拒绝；它自带的访客 IP 也不可信，不往下走。
+  if (!originAllowed(req.headers)) {
+    return send(res, 403, 'Forbidden', { Connection: 'close' });
   }
   const ctx = { req, res, url, path: url.pathname, method: req.method, ip: clientIp(req) };
   // 被封锁的 IP 一律拒绝；其余请求结束后按状态码记一笔，供自动封锁判断。

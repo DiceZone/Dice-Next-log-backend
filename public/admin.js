@@ -830,11 +830,26 @@
         placeholder: data.site.bdc_verify_token_set ? '已设置，留空则不修改' : '尚未设置',
       });
       var liveAuthEl = h('dd', { data: liveAuthText(data.live_auth_modes) });
+      var originHeaderInput = h('input', { type: 'text', value: data.site.origin_auth_header || '', placeholder: 'x-origin-auth' });
+      var originTokenInput = h('input', {
+        type: 'text', autocomplete: 'off', spellcheck: 'false',
+        placeholder: data.site.origin_auth_token_set ? '已设置，留空则不修改' : '尚未设置',
+      });
+      var generateButton = h('button', {
+        class: 'btn', type: 'button', text: '随机生成',
+        onclick: function () {
+          var bytes = new Uint8Array(24);
+          window.crypto.getRandomValues(bytes);
+          originTokenInput.value = Array.prototype.map.call(bytes, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        },
+      });
 
       function saveSite() {
         var body = {};
         Object.keys(siteInputs).forEach(function (name) { body[name] = siteInputs[name].value.trim(); });
         if (tokenInput.value) body.bdc_verify_token = tokenInput.value;
+        body.origin_auth_header = originHeaderInput.value.trim();
+        if (originTokenInput.value.trim()) body.origin_auth_token = originTokenInput.value.trim();
         api('PUT', 'settings', { site: body }).then(function () {
           toast('站点配置已保存，立即生效。');
           renderSettings(root);
@@ -867,6 +882,8 @@
           h('div', { class: 'card-body' },
             siteFields,
             field('骰娘密钥校验凭据', tokenInput, '与 BDC 账号站约定的凭据。'),
+            field('回源校验请求头', originHeaderInput, '在 CDN 设置回源时附带这个请求头与下面的密钥后，本站只接受带着它的请求，绕过 CDN 直连源站的请求会被拒绝。留空则不校验。'),
+            field('回源校验密钥', h('div', { class: 'input-row' }, originTokenInput, generateButton), '16–256 个英文字符。请先在 CDN 配置好并生效，再在这里保存；保存时会核对当前请求是否已带上它。'),
             h('dl', { class: 'env-list' }, h('dt', { text: '可用的骰娘密钥校验方式' }), liveAuthEl),
             h('div', { class: 'form-actions' },
               h('button', { class: 'btn btn-primary', type: 'button', text: '保存站点配置', onclick: saveSite })))),

@@ -252,6 +252,9 @@ const SITE_ERRORS = {
   legacy_upstream_url: '旧站地址须为有效的网址。',
   bdc_verify_url: '骰娘密钥校验地址须以 http:// 或 https:// 开头。',
   trust_proxy_header: '请求头名称只能包含字母、数字与短横线。',
+  origin_auth_header: '请求头名称只能包含字母、数字与短横线。',
+  origin_auth_token: '回源校验密钥须为 16–256 个不含空格的英文字符。',
+  origin_auth_unverified: '当前请求没有带上相符的回源校验请求头。请先在 CDN 配置好回源请求头，再在这里开启。',
 };
 
 function getSettings({ res }) {
@@ -270,7 +273,7 @@ async function putSettings({ req, res }) {
     const def = SETTING_DEFS[bad];
     throw fail(400, `设置项的取值须为 ${def.min}–${def.max} 的整数。`, { field: bad });
   }
-  const badSite = updateSite(body.site);
+  const badSite = updateSite(body.site, req.headers);
   if (badSite) throw fail(400, SITE_ERRORS[badSite] || '站点配置的格式不正确。', { field: badSite });
   send(res, 200, { success: true, values: allSettings(), site: siteValues() });
 }

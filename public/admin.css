@@ -167,6 +167,15 @@ p.hint {
   margin-bottom: 12px;
 }
 
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-row input {
+  flex: 1;
+}
+
 .form-actions {
   display: flex;
   gap: 8px;

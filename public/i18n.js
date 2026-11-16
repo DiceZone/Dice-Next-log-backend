@@ -150,6 +150,16 @@ window.DNLOG_I18N = (function () {
     '骰娘密钥校验地址': 'Bot key verification URL',
     'BDC 账号站校验骰娘密钥的接口地址。': 'Endpoint of the BDC account site that verifies bot keys.',
     '骰娘密钥校验凭据': 'Bot key verification token',
+    '回源校验请求头': 'Origin authentication header',
+    '在 CDN 设置回源时附带这个请求头与下面的密钥后，本站只接受带着它的请求，绕过 CDN 直连源站的请求会被拒绝。留空则不校验。':
+      'Have the CDN send this header with the secret below when fetching from the origin. This site then accepts only requests carrying it, and direct requests that bypass the CDN are refused. Leave empty to disable.',
+    '回源校验密钥': 'Origin authentication secret',
+    '16–256 个英文字符。请先在 CDN 配置好并生效，再在这里保存；保存时会核对当前请求是否已带上它。':
+      '16–256 ASCII characters. Configure the CDN first and wait until it takes effect, then save here; saving checks that the current request already carries it.',
+    '随机生成': 'Generate',
+    '回源校验密钥须为 16–256 个不含空格的英文字符。': 'The origin authentication secret must be 16–256 ASCII characters without spaces.',
+    '当前请求没有带上相符的回源校验请求头。请先在 CDN 配置好回源请求头，再在这里开启。':
+      'The current request does not carry a matching origin authentication header. Configure the origin request header on the CDN first, then enable it here.',
     '与 BDC 账号站约定的凭据。': 'Token agreed with the BDC account site.',
     '可用的骰娘密钥校验方式': 'Bot key verification in use',
     '本站签发的骰娘密钥': 'bot keys issued by this site',

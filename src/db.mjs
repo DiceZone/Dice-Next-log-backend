@@ -101,6 +101,9 @@ db.exec(`UPDATE logs SET group_id = bot_id, bot_id = ''
          WHERE group_id = '' AND bot_id <> '' AND owner_hash = ''
            AND (lower(uniform_id) LIKE '%group:%' OR lower(uniform_id) LIKE '%channel:%' OR lower(uniform_id) LIKE '%guild:%')
            AND bot_id = substr(uniform_id, instr(uniform_id, ':') + 1)`);
+// 海豹管理后台推送的日志 uniform_id 固定是 UI:1000，曾被误记成骰娘号 1000。清空后由内容补认。
+db.exec(`UPDATE logs SET bot_id = '' WHERE owner_hash = '' AND uniform_id LIKE 'UI:%'
+           AND bot_id = substr(uniform_id, instr(uniform_id, ':') + 1)`);
 
 export function nowIso() {
   return new Date().toISOString();
