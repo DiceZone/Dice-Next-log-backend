@@ -323,6 +323,26 @@ try {
   check('公开信息同步新的保留期限', (await call('GET', '/api/v2/info')).json.retention_days === 30);
   check('不合法的设置值被拒绝', (await call('PUT', '/admin/api/settings', { body: { retention_days: -1 }, headers: authed })).status === 400);
 
+  // ── 公告 ──
+  const noNotice = await call('GET', '/api/v2/notice', { headers: { Origin: 'https://log.example.test' } });
+  check('没有公告时公开接口回答没有', noNotice.status === 200 && noNotice.json.enabled === false
+    && noNotice.headers.get('access-control-allow-origin') === 'https://log.example.test', noNotice.text);
+  check('未登录不能改公告', (await call('PUT', '/admin/api/notice', { body: { enabled: true, content: 'x' }, headers: xhr })).status === 401);
+  check('启用公告却没有内容被拒绝', (await call('PUT', '/admin/api/notice', { body: { enabled: true, content: '  ' }, headers: authed })).status === 400);
+  check('公告标题过长被拒绝', (await call('PUT', '/admin/api/notice', { body: { title: 'x'.repeat(101) }, headers: authed })).status === 400);
+  const noticeMd = ['## 维护通知', '', '> 今晚 **23:00** 停机，公式 $D100=6/60$'].join('\n');
+  const savedNotice = await call('PUT', '/admin/api/notice', { body: { enabled: true, title: '公告', content: noticeMd }, headers: authed });
+  check('可保存公告', savedNotice.status === 200 && savedNotice.json.updated_at, savedNotice.text);
+  const shownNotice = (await call('GET', '/api/v2/notice')).json;
+  check('公开接口原样给出 Markdown 原文与版本号', shownNotice.enabled === true && shownNotice.content === noticeMd
+    && shownNotice.title === '公告' && shownNotice.id === savedNotice.json.updated_at, shownNotice);
+  await new Promise((done) => setTimeout(done, 5));
+  const toggled = await call('PUT', '/admin/api/notice', { body: { enabled: false }, headers: authed });
+  check('只切换开关不改变版本号', toggled.json.updated_at === savedNotice.json.updated_at, toggled.text);
+  check('关闭后公开接口回答没有', (await call('GET', '/api/v2/notice')).json.enabled === false);
+  const adminNotice = (await call('GET', '/admin/api/notice', { headers: authed })).json;
+  check('关闭后后台仍保留公告内容', adminNotice.content === noticeMd && adminNotice.limits.content === 20000, adminNotice);
+
   // ── 存储位置与后台搬运 ──
   const blobName = (key) => { const hex = Buffer.from(key).toString('hex'); return join(hex.slice(0, 2), `${hex}.bin`); };
   const inLocal = (key) => existsSync(join(dataDir, 'blobs', blobName(key)));

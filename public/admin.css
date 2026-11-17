@@ -111,6 +111,12 @@ textarea {
   min-height: 72px;
 }
 
+textarea.notice-content {
+  min-height: 240px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  line-height: 1.6;
+}
+
 /* ── 卡片 ── */
 
 .card {

@@ -13,6 +13,7 @@ import {
 import { liveAuthModes } from '../bdc.mjs';
 import { listKeys, issueKeys, updateKey, deleteKey } from '../keys.mjs';
 import { site, siteValues, updateSite } from '../site.mjs';
+import { getNotice, updateNotice, NOTICE_LIMITS } from '../notice.mjs';
 import { importStatus, startImport, stopImport } from '../import-legacy.mjs';
 import { listBans, addBan, removeBan, normalizeTarget, normalizeIp, isPrivateIp, matchesTarget } from '../bans.mjs';
 import {
@@ -278,6 +279,25 @@ async function putSettings({ req, res }) {
   send(res, 200, { success: true, values: allSettings(), site: siteValues() });
 }
 
+// ─── 公告 ───────────────────────────────────────────────────
+
+const NOTICE_ERRORS = {
+  enabled: '公告开关的取值不正确。',
+  title: `公告标题最多 ${NOTICE_LIMITS.title} 个字符。`,
+  content: `启用公告时须填写内容，内容最多 ${NOTICE_LIMITS.content} 个字符。`,
+};
+
+function getNoticeAdmin({ res }) {
+  send(res, 200, { ...getNotice(), limits: NOTICE_LIMITS });
+}
+
+async function putNoticeAdmin({ req, res }) {
+  const body = await readJson(req, 128 * 1024);
+  const bad = updateNotice(body && typeof body === 'object' ? body : {});
+  if (bad) throw fail(400, NOTICE_ERRORS[bad], { field: bad });
+  send(res, 200, { success: true, ...getNotice() });
+}
+
 // ─── 存储位置 ───────────────────────────────────────────────
 
 async function getStorage({ res }) {
@@ -449,6 +469,8 @@ const PRIVATE = {
   'GET settings': getSettings,
   'PUT settings': putSettings,
   'POST cleanup': runCleanup,
+  'GET notice': getNoticeAdmin,
+  'PUT notice': putNoticeAdmin,
   'GET bans': getBans,
   'POST bans': postBan,
   'GET keys': getKeys,

@@ -29,6 +29,22 @@ window.DNLOG_I18N = (function () {
     '搜索': 'Search',
     '已保存。': 'Saved.',
 
+    // ── 公告 ──
+    '公告': 'Notice',
+    '站点公告': 'Site notice',
+    '公告显示在日志染色器页面上，访客点开信封即可阅读。内容使用 Markdown，支持标题、列表、引用、链接、表格、代码与 LaTeX 公式。':
+      'The notice appears on the log colorizer; visitors open the envelope to read it. Content is Markdown, including headings, lists, quotes, links, tables, code and LaTeX formulas.',
+    '标题': 'Title',
+    '可留空。': 'Optional.',
+    '内容': 'Content',
+    '最多 20000 个字符。': 'Up to 20000 characters.',
+    '在染色器页面上显示公告': 'Show the notice on the colorizer',
+    '上次修改：': 'Last changed: ',
+    '尚未发布过公告。': 'No notice has been published yet.',
+    '保存公告': 'Save notice',
+    '公告已保存，一分钟内对所有访客生效。': 'Notice saved. All visitors will see it within a minute.',
+    '公告开关的取值不正确。': 'The notice switch value is invalid.',
+
     // ── 首次设置 / 登录 ──
     '设置管理员账号': 'Set up the administrator account',
     '设置码': 'Setup code',
@@ -365,6 +381,8 @@ window.DNLOG_I18N = (function () {
     [/^(.+)：日志内容为空$/, '$1: the log is empty'],
     [/^(.+)：索引条目格式不对$/, '$1: malformed index entry'],
     [/^设置项的取值须为 (-?\d+)–(\d+) 的整数。$/, 'The value must be an integer from $1 to $2.'],
+    [/^公告标题最多 (\d+) 个字符。$/, 'The notice title can be at most $1 characters.'],
+    [/^启用公告时须填写内容，内容最多 (\d+) 个字符。$/, 'An enabled notice needs content, at most $1 characters.'],
     [/^无法写入该位置：([\s\S]*)$/, 'Cannot write to that location: $1'],
     [/^写入位置「(.+)」当前不可用，日志暂留在原处。$/, 'The write target "$1" is unavailable; logs stay where they are for now.'],
     [/^存储位置「(.+)」当前不可用，暂不迁出。$/, 'The storage location "$1" is unavailable; not moving out for now.'],

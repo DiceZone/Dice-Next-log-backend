@@ -164,7 +164,7 @@
   // ── 主界面 ──────────────────────────────────────────────
 
   var currentTab = 'logs';
-  var TABS = [['logs', '日志'], ['keys', '骰娘密钥'], ['bans', 'IP 封锁'], ['settings', '设置'], ['account', '账号']];
+  var TABS = [['logs', '日志'], ['keys', '骰娘密钥'], ['bans', 'IP 封锁'], ['notice', '公告'], ['settings', '设置'], ['account', '账号']];
 
   function renderMain() {
     var content = h('div', {});
@@ -178,6 +178,7 @@
     if (currentTab === 'logs') renderLogs(content);
     else if (currentTab === 'keys') renderKeys(content);
     else if (currentTab === 'bans') renderBans(content);
+    else if (currentTab === 'notice') renderNotice(content);
     else if (currentTab === 'settings') renderSettings(content);
     else renderAccount(content);
   }
@@ -888,6 +889,38 @@
             h('div', { class: 'form-actions' },
               h('button', { class: 'btn btn-primary', type: 'button', text: '保存站点配置', onclick: saveSite })))),
         importCard);
+    }).catch(showError);
+  }
+
+  // ── 公告 ────────────────────────────────────────────────
+
+  function renderNotice(root) {
+    api('GET', 'notice').then(function (data) {
+      var enabled = h('input', { type: 'checkbox', id: 'notice-enabled', checked: Boolean(data.enabled) });
+      var title = h('input', { type: 'text', maxlength: String(data.limits.title), value: data.title || '' });
+      var content = h('textarea', { class: 'notice-content', maxlength: String(data.limits.content), rows: '16', spellcheck: 'false' });
+      content.value = data.content || '';
+
+      function save() {
+        api('PUT', 'notice', { enabled: enabled.checked, title: title.value, content: content.value })
+          .then(function () {
+            toast('公告已保存，一分钟内对所有访客生效。');
+            renderNotice(root);
+          }).catch(showError);
+      }
+
+      root.replaceChildren(h('div', { class: 'card' },
+        h('div', { class: 'card-title', text: '站点公告' }),
+        h('div', { class: 'card-body' },
+          h('p', { class: 'hint', text: '公告显示在日志染色器页面上，访客点开信封即可阅读。内容使用 Markdown，支持标题、列表、引用、链接、表格、代码与 LaTeX 公式。' }),
+          field('标题', title, '可留空。'),
+          field('内容', content, '最多 20000 个字符。'),
+          h('div', { class: 'field-inline' }, enabled, h('label', { for: 'notice-enabled', text: '在染色器页面上显示公告' })),
+          data.updated_at
+            ? h('p', { class: 'hint' }, h('span', { text: '上次修改：' }), h('span', { data: formatTime(data.updated_at) }))
+            : h('p', { class: 'hint', text: '尚未发布过公告。' }),
+          h('div', { class: 'form-actions' },
+            h('button', { class: 'btn btn-primary', type: 'button', text: '保存公告', onclick: save })))));
     }).catch(showError);
   }
 
