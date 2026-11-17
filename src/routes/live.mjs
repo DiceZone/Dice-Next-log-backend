@@ -176,6 +176,8 @@ function stream({ req, res, url }, key) {
     'X-Accel-Buffering': 'no',
     Connection: 'keep-alive',
   });
+  // 先送一行注释把响应头冲出去：不然在第一条消息之前，浏览器一直以为还没连上。
+  res.write(': connected\n\n');
   if (log.status !== 'live') return writeEnd(res, { status: log.status, last_seq: log.last_seq });
   if (!subscribe(key, res)) return writeEnd(res, { status: 'busy' });
   // 订阅与补发在同一个同步段里完成，中间不会漏掉新消息。
