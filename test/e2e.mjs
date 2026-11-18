@@ -38,8 +38,23 @@ const oldData = deflateSync(Buffer.from(JSON.stringify({
     { nickname: '旧站骰娘', IMUserId: 'QQ:90009', GroupID: 'QQ-Group:321321', time: 1780000001, message: '掷骰结果', isDice: true },
   ],
 })));
+let rkeyHits = 0;
+const fakeRkey = 'CAQSKAB6JWENi5LMtWVWVxS2RfZbDwvOdlkneNX9hQ';
 const fake = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  if (url.pathname === '/rkey') {
+    rkeyHits += 1;
+    if (req.headers['x-log-service-token'] !== 'svc-token') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end('{}');
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    // 公寓给的是去掉前缀的；这里故意带上 &rkey=，看本站会不会去掉
+    return res.end(JSON.stringify({
+      private_rkey: `&rkey=${fakeRkey}`, group_rkey: fakeRkey,
+      expired_time: Math.floor(Date.now() / 1000) + 3000,
+    }));
+  }
   if (url.pathname === '/verify') {
     let body = '';
     for await (const chunk of req) body += chunk;
@@ -82,6 +97,7 @@ const env = {
   FRONTEND_URL: 'https://log.example.test',
   BDC_VERIFY_URL: `http://127.0.0.1:${FAKE_PORT}/verify`,
   BDC_VERIFY_TOKEN: 'svc-token',
+  BDC_RKEY_URL: `http://127.0.0.1:${FAKE_PORT}/rkey`,
   LEGACY_UPSTREAM_URL: `http://127.0.0.1:${FAKE_PORT}/old`,
   LOG_RETENTION_DAYS: '60',
   STORAGES: `cos=${cosDir}`,
@@ -138,6 +154,22 @@ try {
   // ── 站点信息与页面 ──
   const info = await call('GET', '/api/v2/info');
   check('info 返回站点名与保留期限', info.json.name === 'Dice!Next Log Service' && info.json.retention_days === 60 && info.json.live === true);
+
+  // ── QQ 图片 rkey：启动时就去公寓取一次，之后对外公开 ──
+  let rkeyResponse = null;
+  for (let i = 0; i < 50; i++) {
+    rkeyResponse = await call('GET', '/api/v2/rkey', { headers: { Origin: 'https://log.example.test' } });
+    if (rkeyResponse.status === 200) break;
+    await new Promise((done) => setTimeout(done, 100));
+  }
+  check('启动后从公寓取到 rkey 并公开', rkeyResponse.status === 200 && rkeyHits >= 1, rkeyResponse.text);
+  check('公开的 rkey 去掉了 &rkey= 前缀', rkeyResponse.json.private_rkey === fakeRkey && rkeyResponse.json.group_rkey === fakeRkey
+    && rkeyResponse.json.expired_time > Date.now() / 1000, rkeyResponse.json);
+  check('rkey 接口放行染色器来源并允许缓存', rkeyResponse.headers.get('access-control-allow-origin') === 'https://log.example.test'
+    && rkeyResponse.headers.get('cache-control') === 'public, max-age=300');
+  const hitsAfterStart = rkeyHits;
+  await call('GET', '/api/v2/rkey');
+  check('染色器来取不会每次都去问公寓', rkeyHits === hitsAfterStart);
   check('版本号是建置日期', /^20\d{6}$/.test(info.json.version), info.json.version);
   const home = await call('GET', '/');
   check('公开页显示新名称与 logo', home.text.includes('Dice!Next Log Service') && home.text.includes('/logo.svg') && !home.text.includes('SealDice'));

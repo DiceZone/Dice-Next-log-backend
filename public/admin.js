@@ -635,6 +635,7 @@
     ['legacy_upstream_url', '旧站地址', '本站查不到的日志会转去该地址读取；留空则不转。', ''],
     ['trust_proxy_header', '访客 IP 请求头', '反向代理或 CDN 传递访客真实 IP 的请求头；留空则使用连接地址。', ''],
     ['bdc_verify_url', '骰娘密钥校验地址', 'BDC 账号站校验骰娘密钥的接口地址。', 'https://'],
+    ['bdc_rkey_url', 'QQ 图片 rkey 地址', 'BDC 公寓站提供 QQ 图片 rkey 的接口地址，凭据同骰娘密钥校验凭据；本站每 30 分钟取一次，供染色器还原 QQ 图片。留空则不取。', 'https://'],
   ];
 
   var LIVE_AUTH_TEXT = { local: '本站签发的骰娘密钥', static: '配置文件中列出的骰娘密钥', bdc: 'BDC 账号站' };
@@ -831,6 +832,12 @@
         placeholder: data.site.bdc_verify_token_set ? '已设置，留空则不修改' : '尚未设置',
       });
       var liveAuthEl = h('dd', { data: liveAuthText(data.live_auth_modes) });
+      var rkey = data.rkey || {};
+      var rkeyEl = h('dd', {},
+        !rkey.configured ? h('span', { text: '未配置' })
+          : rkey.usable ? [h('span', { text: '可用，有效至 ' }), h('span', { data: formatTime(rkey.expires_at) })]
+            : h('span', { text: '暂无可用的 rkey' }),
+        rkey.configured && rkey.last_error ? [h('br'), h('span', { text: '最近一次失败：' }), h('span', { data: rkey.last_error })] : null);
       var originHeaderInput = h('input', { type: 'text', value: data.site.origin_auth_header || '', placeholder: 'x-origin-auth' });
       var originTokenInput = h('input', {
         type: 'text', autocomplete: 'off', spellcheck: 'false',
@@ -885,7 +892,8 @@
             field('骰娘密钥校验凭据', tokenInput, '与 BDC 账号站约定的凭据。'),
             field('回源校验请求头', originHeaderInput, '在 CDN 设置回源时附带这个请求头与下面的密钥后，本站只接受带着它的请求，绕过 CDN 直连源站的请求会被拒绝。留空则不校验。'),
             field('回源校验密钥', h('div', { class: 'input-row' }, originTokenInput, generateButton), '16–256 个英文字符。请先在 CDN 配置好并生效，再在这里保存；保存时会核对当前请求是否已带上它。'),
-            h('dl', { class: 'env-list' }, h('dt', { text: '可用的骰娘密钥校验方式' }), liveAuthEl),
+            h('dl', { class: 'env-list' }, h('dt', { text: '可用的骰娘密钥校验方式' }), liveAuthEl,
+              h('dt', { text: 'QQ 图片 rkey' }), rkeyEl),
             h('div', { class: 'form-actions' },
               h('button', { class: 'btn btn-primary', type: 'button', text: '保存站点配置', onclick: saveSite })))),
         importCard);

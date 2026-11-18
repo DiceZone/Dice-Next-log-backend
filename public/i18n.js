@@ -165,6 +165,15 @@ window.DNLOG_I18N = (function () {
       'Header in which the reverse proxy or CDN passes the visitor IP; leave empty to use the connection address.',
     '骰娘密钥校验地址': 'Bot key verification URL',
     'BDC 账号站校验骰娘密钥的接口地址。': 'Endpoint of the BDC account site that verifies bot keys.',
+    'QQ 图片 rkey 地址': 'QQ image rkey URL',
+    'BDC 公寓站提供 QQ 图片 rkey 的接口地址，凭据同骰娘密钥校验凭据；本站每 30 分钟取一次，供染色器还原 QQ 图片。留空则不取。':
+      'Endpoint of the BDC flats site that provides the QQ image rkey, using the same credential as bot key verification. Fetched every 30 minutes so the colorizer can restore QQ images. Leave empty to disable.',
+    'QQ 图片 rkey': 'QQ image rkey',
+    '未配置': 'Not configured',
+    '可用，有效至 ': 'Available, valid until ',
+    '暂无可用的 rkey': 'No usable rkey yet',
+    '最近一次失败：': 'Last failure: ',
+    'QQ 图片 rkey 地址须以 http:// 或 https:// 开头。': 'The QQ image rkey URL must start with http:// or https://.',
     '骰娘密钥校验凭据': 'Bot key verification token',
     '回源校验请求头': 'Origin authentication header',
     '在 CDN 设置回源时附带这个请求头与下面的密钥后，本站只接受带着它的请求，绕过 CDN 直连源站的请求会被拒绝。留空则不校验。':

@@ -13,6 +13,7 @@ import {
 import { liveAuthModes } from '../bdc.mjs';
 import { listKeys, issueKeys, updateKey, deleteKey } from '../keys.mjs';
 import { site, siteValues, updateSite } from '../site.mjs';
+import { rkeyStatus, restartRkeyRefresher } from '../rkey.mjs';
 import { getNotice, updateNotice, NOTICE_LIMITS } from '../notice.mjs';
 import { importStatus, startImport, stopImport } from '../import-legacy.mjs';
 import { listBans, addBan, removeBan, normalizeTarget, normalizeIp, isPrivateIp, matchesTarget } from '../bans.mjs';
@@ -252,6 +253,7 @@ const SITE_ERRORS = {
   cors_origins: '额外放行的来源须为网址，多个以逗号分隔。',
   legacy_upstream_url: '旧站地址须为有效的网址。',
   bdc_verify_url: '骰娘密钥校验地址须以 http:// 或 https:// 开头。',
+  bdc_rkey_url: 'QQ 图片 rkey 地址须以 http:// 或 https:// 开头。',
   trust_proxy_header: '请求头名称只能包含字母、数字与短横线。',
   origin_auth_header: '请求头名称只能包含字母、数字与短横线。',
   origin_auth_token: '回源校验密钥须为 16–256 个不含空格的英文字符。',
@@ -264,6 +266,7 @@ function getSettings({ res }) {
     limits: SETTING_DEFS,
     site: siteValues(),
     live_auth_modes: liveAuthModes(),
+    rkey: rkeyStatus(),
   });
 }
 
@@ -276,6 +279,8 @@ async function putSettings({ req, res }) {
   }
   const badSite = updateSite(body.site, req.headers);
   if (badSite) throw fail(400, SITE_ERRORS[badSite] || '站点配置的格式不正确。', { field: badSite });
+  // 改了 rkey 地址或凭据：立刻重取一次
+  if (body.site && ('bdc_rkey_url' in body.site || 'bdc_verify_token' in body.site)) restartRkeyRefresher();
   send(res, 200, { success: true, values: allSettings(), site: siteValues() });
 }
 

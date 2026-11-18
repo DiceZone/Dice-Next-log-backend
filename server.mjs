@@ -12,6 +12,8 @@ import { findBan, recordResponse } from './src/bans.mjs';
 import { matchLegacy } from './src/routes/legacy.mjs';
 import { matchLive } from './src/routes/live.mjs';
 import { matchNotice } from './src/routes/notice.mjs';
+import { matchRkey } from './src/routes/rkey.mjs';
+import { startRkeyRefresher } from './src/rkey.mjs';
 import { matchAdmin } from './src/routes/admin.mjs';
 
 
@@ -62,7 +64,7 @@ async function route(ctx) {
 
   if (method === 'OPTIONS') return send(res, 204, null, cors(req));
 
-  const handler = matchLive(ctx) || matchNotice(ctx) || matchLegacy(ctx);
+  const handler = matchLive(ctx) || matchNotice(ctx) || matchRkey(ctx) || matchLegacy(ctx);
   if (handler) return handler(ctx);
 
   if ((method === 'GET' || method === 'HEAD') && serveStatic(res, path)) return undefined;
@@ -140,6 +142,7 @@ server.listen(config.port, config.host, () => {
   }
   maintain();
   setInterval(maintain, 5 * 60 * 1000).unref();
+  startRkeyRefresher();
   backfillIds().catch((err) => console.error('[补齐] 失败：', err));
 });
 

@@ -80,6 +80,8 @@ export const config = {
   legacyUpstream: baseUrl(env.LEGACY_UPSTREAM_URL),
   bdcVerifyUrl: (env.BDC_VERIFY_URL || '').trim(),
   bdcVerifyToken: (env.BDC_VERIFY_TOKEN || '').trim(),
+  // BDC 公寓站提供 QQ 图片 rkey 的接口，凭据同上；留空则不取。
+  bdcRkeyUrl: (env.BDC_RKEY_URL || '').trim(),
   // 自建站不接 BDC 时，可在此直接列出允许串流的骰娘密钥。
   liveStaticKeys: list(env.LIVE_STATIC_KEYS),
   trustProxyHeader: (env.TRUST_PROXY_HEADER || '').trim().toLowerCase(),

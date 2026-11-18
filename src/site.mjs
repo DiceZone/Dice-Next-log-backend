@@ -34,6 +34,14 @@ const DEFS = {
     },
   },
   bdc_verify_token: { def: config.bdcVerifyToken, clean: (v) => String(v ?? '').trim().slice(0, 256), secret: true },
+  // BDC 公寓站提供 QQ 图片 rkey 的接口，凭据与骰娘密钥校验共用；留空则不取 rkey（见 rkey.mjs）。
+  bdc_rkey_url: {
+    def: config.bdcRkeyUrl,
+    clean: (v) => {
+      const text = String(v ?? '').trim();
+      return !text || /^https?:\/\/\S+$/i.test(text) ? text : null;
+    },
+  },
   // 回源校验：CDN 回源时带上这个请求头与密钥，没带的请求一律拒绝。
   // 源站的地址被人知道后，可以绕过 CDN 直接访问并伪造访客 IP；开了这项就挡住了。
   // 请求头名留空即关闭。
@@ -81,6 +89,7 @@ export const site = {
   get legacyUpstream() { return load().values.legacy_upstream_url; },
   get bdcVerifyUrl() { return load().values.bdc_verify_url; },
   get bdcVerifyToken() { return load().values.bdc_verify_token; },
+  get bdcRkeyUrl() { return load().values.bdc_rkey_url; },
   get trustProxyHeader() { return load().values.trust_proxy_header; },
   get originAuthHeader() { return load().values.origin_auth_header; },
   get originAuthToken() { return load().values.origin_auth_token; },
