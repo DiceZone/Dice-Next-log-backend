@@ -1,5 +1,6 @@
 // Dice!Next Log Service —— 入口。
 import { createServer } from 'node:http';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config, ROOT } from './src/config.mjs';
@@ -87,7 +88,15 @@ const server = createServer(async (req, res) => {
   if (findBan(ctx.ip)) {
     return send(res, 403, { success: false, error: 'IP_BANNED', message: 'Your IP address has been blocked.' }, { Connection: 'close' });
   }
-  res.on('finish', () => recordResponse(ctx.ip, res.statusCode));
+  const startedAt = performance.now();
+  res.on('finish', () => {
+    recordResponse(ctx.ip, res.statusCode);
+    // 慢请求留一笔：有人反映偶尔要等十几秒，看是不是慢在本站（实时串流本来就是长连接，不算）。
+    const ms = Math.round(performance.now() - startedAt);
+    if (ms >= SLOW_REQUEST_MS && !ctx.path.endsWith('/stream')) {
+      console.warn(`[慢请求] ${req.method} ${ctx.path} ${res.statusCode} ${ms}ms`);
+    }
+  });
   try {
     await route(ctx);
   } catch (err) {
@@ -100,6 +109,20 @@ const server = createServer(async (req, res) => {
     if (!res.writableEnded) res.end();
   }
 });
+
+// ─── 诊断：慢请求与事件循环卡顿 ─────────────────────────────
+
+// 超过这么久的请求记一笔（见上面的 finish）。
+const SLOW_REQUEST_MS = 1000;
+
+// 事件循环被同步工作卡住时，所有请求都会一起变慢；每分钟看一次这一分钟里卡得最久的一下。
+const loopDelay = monitorEventLoopDelay({ resolution: 20 });
+loopDelay.enable();
+setInterval(() => {
+  const worst = Math.round(loopDelay.max / 1e6);
+  if (worst >= 500) console.warn(`[卡顿] 过去一分钟事件循环最长卡住 ${worst}ms`);
+  loopDelay.reset();
+}, 60 * 1000).unref();
 
 // ─── 定时维护 ───────────────────────────────────────────────
 
